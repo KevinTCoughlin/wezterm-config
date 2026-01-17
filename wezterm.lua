@@ -111,19 +111,79 @@ config.keys = {
 
   -- Media controls (Apple Music/Podcasts/TV) - using CTRL|SHIFT to avoid tmux conflict
   { key = "m", mods = "CTRL|SHIFT", action = wezterm.action_callback(function()
-    wezterm.run_child_process({ "osascript", "-e", 'tell application "Music" to playpause' })
+    wezterm.run_child_process({ "osascript", "-e", [[
+      tell application "System Events"
+        if exists process "Music" then
+          tell application "Music" to if player state is playing or player state is paused then playpause
+        end if
+        if exists process "Podcasts" then
+          tell application "Podcasts" to if player state is playing or player state is paused then playpause
+        end if
+        if exists process "TV" then
+          tell application "TV" to if player state is playing or player state is paused then playpause
+        end if
+      end tell
+    ]] })
   end) },
   { key = ".", mods = "CTRL|SHIFT", action = wezterm.action_callback(function()
-    wezterm.run_child_process({ "osascript", "-e", 'tell application "Music" to next track' })
+    wezterm.run_child_process({ "osascript", "-e", [[
+      tell application "System Events"
+        if exists process "Music" then
+          tell application "Music" to if player state is playing or player state is paused then next track
+        end if
+        if exists process "Podcasts" then
+          tell application "Podcasts" to if player state is playing or player state is paused then next track
+        end if
+        if exists process "TV" then
+          tell application "TV" to if player state is playing or player state is paused then next track
+        end if
+      end tell
+    ]] })
   end) },
   { key = ",", mods = "CTRL|SHIFT", action = wezterm.action_callback(function()
-    wezterm.run_child_process({ "osascript", "-e", 'tell application "Music" to previous track' })
+    wezterm.run_child_process({ "osascript", "-e", [[
+      tell application "System Events"
+        if exists process "Music" then
+          tell application "Music" to if player state is playing or player state is paused then previous track
+        end if
+        if exists process "Podcasts" then
+          tell application "Podcasts" to if player state is playing or player state is paused then previous track
+        end if
+        if exists process "TV" then
+          tell application "TV" to if player state is playing or player state is paused then previous track
+        end if
+      end tell
+    ]] })
   end) },
   { key = "=", mods = "CTRL|SHIFT", action = wezterm.action_callback(function()
-    wezterm.run_child_process({ "osascript", "-e", 'tell application "Music" to set sound volume to (sound volume + 10)' })
+    wezterm.run_child_process({ "osascript", "-e", [[
+      tell application "System Events"
+        if exists process "Music" then
+          tell application "Music" to if player state is playing or player state is paused then set sound volume to (sound volume + 10)
+        end if
+        if exists process "Podcasts" then
+          tell application "Podcasts" to if player state is playing or player state is paused then set sound volume to (sound volume + 10)
+        end if
+        if exists process "TV" then
+          tell application "TV" to if player state is playing or player state is paused then set sound volume to (sound volume + 10)
+        end if
+      end tell
+    ]] })
   end) },
   { key = "-", mods = "CTRL|SHIFT", action = wezterm.action_callback(function()
-    wezterm.run_child_process({ "osascript", "-e", 'tell application "Music" to set sound volume to (sound volume - 10)' })
+    wezterm.run_child_process({ "osascript", "-e", [[
+      tell application "System Events"
+        if exists process "Music" then
+          tell application "Music" to if player state is playing or player state is paused then set sound volume to (sound volume - 10)
+        end if
+        if exists process "Podcasts" then
+          tell application "Podcasts" to if player state is playing or player state is paused then set sound volume to (sound volume - 10)
+        end if
+        if exists process "TV" then
+          tell application "TV" to if player state is playing or player state is paused then set sound volume to (sound volume - 10)
+        end if
+      end tell
+    ]] })
   end) },
 
   -- macOS natural text editing
@@ -171,14 +231,42 @@ local eq_styles = {
 }
 local eq_frames = eq_styles[media_config.eq_style] or eq_styles.wave
 
+local media_icons = {
+  music = { icon = "󰎆", color = "#7aa2f7" },
+  podcast = { icon = "󰦔", color = "#e0af68" },
+  tv = { icon = "󰕼", color = "#f7768e" },
+}
+
 wezterm.on("update-status", function(window, pane)
   local ok, output = wezterm.run_child_process({
     "osascript", "-e", [[
       tell application "System Events"
+        -- Check Music
         if exists process "Music" then
           tell application "Music"
             if player state is playing or player state is paused then
-              return (name of current track) & " — " & (artist of current track) & "|" & (player state is playing)
+              return "music|" & (name of current track) & " — " & (artist of current track) & "|" & (player state is playing)
+            end if
+          end tell
+        end if
+        -- Check Podcasts
+        if exists process "Podcasts" then
+          tell application "Podcasts"
+            if player state is playing or player state is paused then
+              return "podcast|" & (name of current episode) & " — " & (name of (show of current episode)) & "|" & (player state is playing)
+            end if
+          end tell
+        end if
+        -- Check TV
+        if exists process "TV" then
+          tell application "TV"
+            if player state is playing or player state is paused then
+              set showName to ""
+              try
+                set showName to show of current track
+              end try
+              if showName is "" then set showName to album of current track
+              return "tv|" & (name of current track) & " — " & showName & "|" & (player state is playing)
             end if
           end tell
         end if
@@ -196,8 +284,9 @@ wezterm.on("update-status", function(window, pane)
     return
   end
 
-  local track, playing = result:match("^(.+)|(.+)$")
+  local app, track, playing = result:match("^([^|]+)|(.+)|(.+)$")
   local is_playing = playing == "true"
+  local media = media_icons[app] or media_icons.music
 
   -- Reset scroll position on track change
   if track ~= media_state.last_track then
@@ -221,9 +310,9 @@ wezterm.on("update-status", function(window, pane)
   end
 
   window:set_right_status(wezterm.format({
-    { Foreground = { Color = "#7aa2f7" } },
-    { Text = "󰎆 " },
-    { Foreground = { Color = "#7aa2f7" } },
+    { Foreground = { Color = media.color } },
+    { Text = media.icon .. " " },
+    { Foreground = { Color = media.color } },
     { Text = eq .. "  " },
     { Foreground = { Color = "#c0caf5" } },
     { Text = display },
