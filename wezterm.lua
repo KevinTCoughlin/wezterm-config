@@ -254,7 +254,6 @@ wezterm.on("update-status", function(window, pane)
     "-e", [[
 tell application "System Events"
   set musicRunning to exists process "Music"
-  set podcastsRunning to exists process "Podcasts"
   set tvRunning to exists process "TV"
 end tell
 if musicRunning then
@@ -262,14 +261,6 @@ if musicRunning then
     set ps to player state
     if ps is playing or ps is paused then
       return "music|" & (name of current track) & " — " & (artist of current track) & "|" & (ps is playing)
-    end if
-  end tell
-end if
-if podcastsRunning then
-  tell application "Podcasts"
-    set ps to player state
-    if ps is playing or ps is paused then
-      return "podcast|" & (name of current episode) & " — " & (name of (show of current episode)) & "|" & (ps is playing)
     end if
   end tell
 end if
