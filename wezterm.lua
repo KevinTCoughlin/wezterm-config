@@ -17,14 +17,25 @@ config.line_height = 1.1
 
 -- Window
 config.window_decorations = "RESIZE"
-config.initial_cols = 140
-config.initial_rows = 45
+config.initial_cols = 120
+config.initial_rows = 20
 
--- Position window at top-left on launch
+-- Position window in bottom-right quarter on launch
 wezterm.on("gui-startup", function(cmd)
   local screen = wezterm.gui.screens().active
   local tab, pane, window = wezterm.mux.spawn_window(cmd or {})
-  window:gui_window():set_position(screen.x, screen.y)
+  local gui = window:gui_window()
+
+  -- Get actual window dimensions after spawn
+  local dims = gui:get_dimensions()
+  local win_width = dims.pixel_width
+  local win_height = dims.pixel_height
+
+  -- Position: right-aligned, bottom of screen (with small margin)
+  local margin = 10
+  local x = screen.x + screen.width - win_width - margin
+  local y = screen.y + screen.height - win_height - margin
+  gui:set_position(x, y)
 end)
 config.window_padding = {
   left = 10,
@@ -238,42 +249,40 @@ local media_icons = {
 }
 
 wezterm.on("update-status", function(window, pane)
-  -- Debug: always show something
   local ok, output, stderr = wezterm.run_child_process({
-    "osascript", "-e", [[
-      tell application "System Events"
-        -- Check Music
-        if exists process "Music" then
-          tell application "Music"
-            if player state is playing or player state is paused then
-              return "music|" & (name of current track) & " — " & (artist of current track) & "|" & (player state is playing)
-            end if
-          end tell
-        end if
-        -- Check Podcasts
-        if exists process "Podcasts" then
-          tell application "Podcasts"
-            if player state is playing or player state is paused then
-              return "podcast|" & (name of current episode) & " — " & (name of (show of current episode)) & "|" & (player state is playing)
-            end if
-          end tell
-        end if
-        -- Check TV
-        if exists process "TV" then
-          tell application "TV"
-            if player state is playing or player state is paused then
-              set showName to ""
-              try
-                set showName to show of current track
-              end try
-              if showName is "" then set showName to album of current track
-              return "tv|" & (name of current track) & " — " & showName & "|" & (player state is playing)
-            end if
-          end tell
-        end if
-      end tell
-      return ""
-    ]]
+    "osascript",
+    "-e", [[
+tell application "System Events"
+  set musicRunning to exists process "Music"
+  set podcastsRunning to exists process "Podcasts"
+  set tvRunning to exists process "TV"
+end tell
+if musicRunning then
+  tell application "Music"
+    set ps to player state
+    if ps is playing or ps is paused then
+      return "music|" & (name of current track) & " — " & (artist of current track) & "|" & (ps is playing)
+    end if
+  end tell
+end if
+if podcastsRunning then
+  tell application "Podcasts"
+    set ps to player state
+    if ps is playing or ps is paused then
+      return "podcast|" & (name of current episode) & " — " & (name of (show of current episode)) & "|" & (ps is playing)
+    end if
+  end tell
+end if
+if tvRunning then
+  tell application "TV"
+    set ps to player state
+    if ps is playing or ps is paused then
+      return "tv|" & (name of current track) & " — " & (album of current track) & "|" & (ps is playing)
+    end if
+  end tell
+end if
+return ""
+    ]],
   })
 
   local result = output and output:gsub("^%s*(.-)%s*$", "%1") or ""
