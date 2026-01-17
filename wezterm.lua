@@ -4,7 +4,17 @@ local config = wezterm.config_builder()
 
 -- Plugins
 local smart_splits = wezterm.plugin.require("https://github.com/mrjones2014/smart-splits.nvim")
--- local apple_media = require("plugins.apple-media")  -- using inline implementation
+
+-- Media keybindings (Option+Shift+key)
+-- Customize keys/modifiers to your preference
+local media_keys = {
+  mods = "OPT|SHIFT",      -- modifier combo
+  play_pause = "Space",    -- Opt+Shift+Space
+  next_track = "n",        -- Opt+Shift+n
+  prev_track = "p",        -- Opt+Shift+p
+  vol_up = "=",            -- Opt+Shift+=
+  vol_down = "-",          -- Opt+Shift+-
+}
 
 -- ============================================
 -- Appearance
@@ -120,81 +130,21 @@ config.keys = {
   -- Command palette
   { key = ":", mods = "LEADER|SHIFT", action = wezterm.action.ActivateCommandPalette },
 
-  -- Media controls (Apple Music/Podcasts/TV) - using CTRL|SHIFT to avoid tmux conflict
-  { key = "m", mods = "CTRL|SHIFT", action = wezterm.action_callback(function()
-    wezterm.run_child_process({ "osascript", "-e", [[
-      tell application "System Events"
-        if exists process "Music" then
-          tell application "Music" to if player state is playing or player state is paused then playpause
-        end if
-        if exists process "Podcasts" then
-          tell application "Podcasts" to if player state is playing or player state is paused then playpause
-        end if
-        if exists process "TV" then
-          tell application "TV" to if player state is playing or player state is paused then playpause
-        end if
-      end tell
-    ]] })
+  -- Media controls (Apple Music) - customize in media_keys table at top of file
+  { key = media_keys.play_pause, mods = media_keys.mods, action = wezterm.action_callback(function()
+    wezterm.run_child_process({ "osascript", "-e", 'tell application "Music" to playpause' })
   end) },
-  { key = ".", mods = "CTRL|SHIFT", action = wezterm.action_callback(function()
-    wezterm.run_child_process({ "osascript", "-e", [[
-      tell application "System Events"
-        if exists process "Music" then
-          tell application "Music" to if player state is playing or player state is paused then next track
-        end if
-        if exists process "Podcasts" then
-          tell application "Podcasts" to if player state is playing or player state is paused then next track
-        end if
-        if exists process "TV" then
-          tell application "TV" to if player state is playing or player state is paused then next track
-        end if
-      end tell
-    ]] })
+  { key = media_keys.next_track, mods = media_keys.mods, action = wezterm.action_callback(function()
+    wezterm.run_child_process({ "osascript", "-e", 'tell application "Music" to next track' })
   end) },
-  { key = ",", mods = "CTRL|SHIFT", action = wezterm.action_callback(function()
-    wezterm.run_child_process({ "osascript", "-e", [[
-      tell application "System Events"
-        if exists process "Music" then
-          tell application "Music" to if player state is playing or player state is paused then previous track
-        end if
-        if exists process "Podcasts" then
-          tell application "Podcasts" to if player state is playing or player state is paused then previous track
-        end if
-        if exists process "TV" then
-          tell application "TV" to if player state is playing or player state is paused then previous track
-        end if
-      end tell
-    ]] })
+  { key = media_keys.prev_track, mods = media_keys.mods, action = wezterm.action_callback(function()
+    wezterm.run_child_process({ "osascript", "-e", 'tell application "Music" to previous track' })
   end) },
-  { key = "=", mods = "CTRL|SHIFT", action = wezterm.action_callback(function()
-    wezterm.run_child_process({ "osascript", "-e", [[
-      tell application "System Events"
-        if exists process "Music" then
-          tell application "Music" to if player state is playing or player state is paused then set sound volume to (sound volume + 10)
-        end if
-        if exists process "Podcasts" then
-          tell application "Podcasts" to if player state is playing or player state is paused then set sound volume to (sound volume + 10)
-        end if
-        if exists process "TV" then
-          tell application "TV" to if player state is playing or player state is paused then set sound volume to (sound volume + 10)
-        end if
-      end tell
-    ]] })
+  { key = media_keys.vol_up, mods = media_keys.mods, action = wezterm.action_callback(function()
+    wezterm.run_child_process({ "osascript", "-e", 'tell application "Music" to set sound volume to (sound volume + 10)' })
   end) },
-  { key = "-", mods = "CTRL|SHIFT", action = wezterm.action_callback(function()
-    wezterm.run_child_process({ "osascript", "-e", [[
-      tell application "System Events"
-        if exists process "Music" then
-          tell application "Music" to if player state is playing or player state is paused then set sound volume to (sound volume - 10)
-        end if
-        if exists process "Podcasts" then
-          tell application "Podcasts" to if player state is playing or player state is paused then set sound volume to (sound volume - 10)
-        end if
-        if exists process "TV" then
-          tell application "TV" to if player state is playing or player state is paused then set sound volume to (sound volume - 10)
-        end if
-      end tell
-    ]] })
+  { key = media_keys.vol_down, mods = media_keys.mods, action = wezterm.action_callback(function()
+    wezterm.run_child_process({ "osascript", "-e", 'tell application "Music" to set sound volume to (sound volume - 10)' })
   end) },
 
   -- macOS natural text editing
@@ -203,6 +153,16 @@ config.keys = {
   { key = "LeftArrow", mods = "CMD", action = wezterm.action.SendKey({ key = "Home" }) },
   { key = "RightArrow", mods = "CMD", action = wezterm.action.SendKey({ key = "End" }) },
   { key = "Backspace", mods = "CMD", action = wezterm.action.SendKey({ key = "u", mods = "CTRL" }) },
+
+  -- Ollama quick launch (LEADER + o prefix)
+  { key = "o", mods = "LEADER", action = wezterm.action.SpawnCommandInNewTab({
+    args = { "ollama", "run", "llama3.2" },
+    set_environment_variables = { OLLAMA_MODEL = "llama3.2" },
+  }) },
+  { key = "O", mods = "LEADER|SHIFT", action = wezterm.action.SpawnCommandInNewTab({
+    args = { "ollama", "run", "codellama" },
+    set_environment_variables = { OLLAMA_MODEL = "codellama" },
+  }) },
 }
 
 -- ============================================
@@ -249,7 +209,7 @@ local media_icons = {
 }
 
 wezterm.on("update-status", function(window, pane)
-  local ok, output, stderr = wezterm.run_child_process({
+  local _, output = wezterm.run_child_process({
     "osascript",
     "-e", [[
 tell application "System Events"
@@ -277,6 +237,7 @@ return ""
   })
 
   local result = output and output:gsub("^%s*(.-)%s*$", "%1") or ""
+
   if result == "" then
     window:set_right_status(wezterm.format({
       { Foreground = { Color = "#565f89" } },
@@ -285,7 +246,7 @@ return ""
     return
   end
 
-  local app, track, playing = result:match("^([^|]+)|(.-)|(true|false)$")
+  local app, track, playing = result:match("^([^|]+)|(.+)|(%a+)$")
   if not app or not track then
     window:set_right_status(wezterm.format({
       { Foreground = { Color = "#565f89" } },
