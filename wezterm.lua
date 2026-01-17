@@ -80,7 +80,12 @@ config.max_fps = 120
 -- Shell
 -- ============================================
 
-config.default_prog = { "/bin/zsh", "-l" }
+-- Use platform-appropriate shell
+if wezterm.target_triple:find("windows") then
+  config.default_prog = { "pwsh.exe" }
+else
+  config.default_prog = { "/bin/zsh", "-l" }
+end
 
 -- ============================================
 -- Key Bindings
@@ -245,9 +250,14 @@ local function build_status_suffix()
 end
 
 wezterm.on("update-status", function(window, pane)
-  local _, output = wezterm.run_child_process({
-    "osascript",
-    "-e", [[
+  local is_macos = wezterm.target_triple:find("darwin") ~= nil
+  local result = ""
+
+  -- Apple Music/TV status only works on macOS
+  if is_macos then
+    local _, output = wezterm.run_child_process({
+      "osascript",
+      "-e", [[
 tell application "System Events"
   set musicRunning to exists process "Music"
   set tvRunning to exists process "TV"
@@ -269,12 +279,12 @@ if tvRunning then
   end tell
 end if
 return ""
-    ]],
-  })
+      ]],
+    })
+    result = output and output:gsub("^%s*(.-)%s*$", "%1") or ""
+  end
 
-  local result = output and output:gsub("^%s*(.-)%s*$", "%1") or ""
-
-  -- No media playing - show Ollama + Battery + datetime only
+  -- No media playing (or not on macOS) - show Ollama + Battery + datetime only
   if result == "" then
     local elements = {}
     for _, e in ipairs(ollama.get_status_elements()) do

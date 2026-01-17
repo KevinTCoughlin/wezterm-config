@@ -5,7 +5,7 @@
 --   - Battery percentage display
 --   - State-based colors (charging, discharging, full, low)
 --   - Configurable icons and thresholds
---   - macOS support via pmset
+--   - Cross-platform support via wezterm.battery_info()
 
 local wezterm = require("wezterm")
 
@@ -132,58 +132,7 @@ end
 local resolved_opts = nil
 
 -- ============================================
--- Battery Info Parsing (macOS)
--- ============================================
-
-local function parse_battery_macos(output)
-  local result = {
-    percentage = nil,
-    status = "unknown",
-    time_remaining = nil,
-    is_present = false,
-  }
-
-  if not output or output == "" then
-    return result
-  end
-
-  -- Check if battery is present
-  if output:match("InternalBattery") then
-    result.is_present = true
-  else
-    return result
-  end
-
-  -- Parse percentage: "85%"
-  local pct = output:match("(%d+)%%")
-  if pct then
-    result.percentage = tonumber(pct)
-  end
-
-  -- Parse status
-  if output:match("charged") then
-    result.status = "full"
-  elseif output:match("charging") then
-    result.status = "charging"
-  elseif output:match("discharging") or output:match("Battery Power") then
-    result.status = "discharging"
-  elseif output:match("AC Power") and result.percentage == 100 then
-    result.status = "full"
-  elseif output:match("AC Power") then
-    result.status = "charging"
-  end
-
-  -- Parse time remaining: "5:30 remaining" or "(no estimate)"
-  local hours, mins = output:match("(%d+):(%d+) remaining")
-  if hours and mins then
-    result.time_remaining = string.format("%dh %dm", tonumber(hours), tonumber(mins))
-  end
-
-  return result
-end
-
--- ============================================
--- Battery Info Fetching
+-- Battery Info Fetching (Cross-platform)
 -- ============================================
 
 local function fetch_battery_info(opts)
@@ -192,16 +141,40 @@ local function fetch_battery_info(opts)
     return state
   end
 
-  local success, output = wezterm.run_child_process({
-    "pmset", "-g", "batt",
-  })
+  -- Use WezTerm's built-in cross-platform battery API
+  local batteries = wezterm.battery_info()
 
-  if success and output then
-    local info = parse_battery_macos(output)
-    state.percentage = info.percentage
-    state.status = info.status
-    state.time_remaining = info.time_remaining
-    state.is_present = info.is_present
+  if batteries and #batteries > 0 then
+    local battery = batteries[1]  -- Use first battery
+
+    state.is_present = true
+    state.percentage = math.floor(battery.state_of_charge * 100 + 0.5)
+
+    -- Map WezTerm states to our states
+    local state_map = {
+      ["Charging"] = "charging",
+      ["Discharging"] = "discharging",
+      ["Empty"] = "discharging",
+      ["Full"] = "full",
+      ["Unknown"] = "unknown",
+    }
+    state.status = state_map[battery.state] or "unknown"
+
+    -- Calculate time remaining
+    local seconds = nil
+    if battery.state == "Charging" and battery.time_to_full then
+      seconds = battery.time_to_full
+    elseif battery.state == "Discharging" and battery.time_to_empty then
+      seconds = battery.time_to_empty
+    end
+
+    if seconds and seconds > 0 then
+      local hours = math.floor(seconds / 3600)
+      local mins = math.floor((seconds % 3600) / 60)
+      state.time_remaining = string.format("%dh %dm", hours, mins)
+    else
+      state.time_remaining = nil
+    end
   else
     state.percentage = nil
     state.status = "unknown"
