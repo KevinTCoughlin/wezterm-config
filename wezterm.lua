@@ -150,10 +150,26 @@ config.mouse_bindings = {
 -- ============================================
 -- Apple Music Status Bar
 -- ============================================
-config.status_update_interval = 500
+
+-- User configuration
+local media_config = {
+  scroll_speed = 3,        -- characters to scroll per tick (1 = slow, 5 = fast)
+  scroll_width = 35,       -- visible characters for track display
+  update_interval = 150,   -- ms between updates (lower = smoother)
+  eq_style = "wave",       -- "wave", "thin", "classic", "dots", "mini"
+}
+
+config.status_update_interval = media_config.update_interval
 
 local media_state = { position = 0, last_track = "", eq_frame = 1 }
-local eq_frames = { "∿∿∿", "∾∿∿", "∿∾∿", "∿∿∾" }
+local eq_styles = {
+  wave = { "∿∿∿", "∾∿∿", "∿∾∿", "∿∿∾" },
+  thin = { "▏▎▍", "▎▍▌", "▍▌▋", "▌▋▊", "▋▊▉", "▊▉▊", "▉▊▋", "▊▋▌", "▋▌▍", "▌▍▎", "▍▎▏", "▎▏▎" },
+  classic = { "▁▃▅", "▂▅▃", "▃▂▅", "▅▃▂", "▃▅▃", "▂▃▅" },
+  dots = { "●○●", "○●○", "●●○", "○●●", "●○○", "○○●" },
+  mini = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" },
+}
+local eq_frames = eq_styles[media_config.eq_style] or eq_styles.wave
 
 wezterm.on("update-status", function(window, pane)
   local ok, output = wezterm.run_child_process({
@@ -190,12 +206,12 @@ wezterm.on("update-status", function(window, pane)
   end
 
   -- Scrolling marquee
-  local scroll_width = 35
   local display = track
-  if #track > scroll_width then
-    local scroll = track .. "  ·  " .. track
-    display = scroll:sub(media_state.position + 1, media_state.position + scroll_width)
-    media_state.position = (media_state.position + 1) % (#track + 5)
+  if #track > media_config.scroll_width then
+    local padding = "  ·  "
+    local scroll = track .. padding .. track
+    display = scroll:sub(media_state.position + 1, media_state.position + media_config.scroll_width)
+    media_state.position = (media_state.position + media_config.scroll_speed) % (#track + #padding)
   end
 
   -- Animate equalizer
