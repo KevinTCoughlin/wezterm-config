@@ -4,6 +4,8 @@ local config = wezterm.config_builder()
 
 -- Plugins
 local smart_splits = wezterm.plugin.require("https://github.com/mrjones2014/smart-splits.nvim")
+local ollama = dofile(wezterm.config_dir .. "/plugins/wezterm-ollama/plugin/init.lua")
+local battery = dofile(wezterm.config_dir .. "/plugins/wezterm-battery/plugin/init.lua")
 
 -- Media keybindings (Option+Shift+key)
 -- Customize keys/modifiers to your preference
@@ -154,15 +156,6 @@ config.keys = {
   { key = "RightArrow", mods = "CMD", action = wezterm.action.SendKey({ key = "End" }) },
   { key = "Backspace", mods = "CMD", action = wezterm.action.SendKey({ key = "u", mods = "CTRL" }) },
 
-  -- Ollama quick launch (LEADER + o prefix)
-  { key = "o", mods = "LEADER", action = wezterm.action.SpawnCommandInNewTab({
-    args = { "ollama", "run", "llama3.2" },
-    set_environment_variables = { OLLAMA_MODEL = "llama3.2" },
-  }) },
-  { key = "O", mods = "LEADER|SHIFT", action = wezterm.action.SpawnCommandInNewTab({
-    args = { "ollama", "run", "codellama" },
-    set_environment_variables = { OLLAMA_MODEL = "codellama" },
-  }) },
 }
 
 -- ============================================
@@ -190,6 +183,23 @@ local media_config = {
   eq_style = "wave",       -- "wave", "thin", "classic", "dots", "mini"
 }
 
+-- Battery configuration
+local battery_config = {
+  show_percentage = true,     -- show numeric percentage
+  show_time = false,          -- show time remaining
+  use_granular_icons = true,  -- icons change based on level
+  low_threshold = 20,         -- orange warning below this
+  critical_threshold = 10,    -- red warning below this
+  colors = {
+    charging = "#9ece6a",     -- green
+    discharging = "#7aa2f7",  -- blue
+    full = "#9ece6a",         -- green
+    low = "#e0af68",          -- orange
+    critical = "#f7768e",     -- red
+    percentage = "#c0caf5",   -- text
+  },
+}
+
 config.status_update_interval = media_config.update_interval
 
 local media_state = { position = 0, last_track = "", eq_frame = 1 }
@@ -207,6 +217,32 @@ local media_icons = {
   podcast = { icon = "󰦔", color = "#e0af68" },
   tv = { icon = "󰕼", color = "#f7768e" },
 }
+
+-- Helper to build status elements with Ollama + Battery + datetime
+local function build_status_suffix()
+  local elements = {}
+
+  -- Separator
+  table.insert(elements, { Foreground = { Color = "#565f89" } })
+  table.insert(elements, { Text = "  │  " })
+
+  -- Ollama status
+  for _, e in ipairs(ollama.get_status_elements()) do
+    table.insert(elements, e)
+  end
+
+  -- Battery status (with separator)
+  for _, e in ipairs(battery.get_status_with_separator()) do
+    table.insert(elements, e)
+  end
+
+  -- Datetime
+  for _, e in ipairs(ollama.get_datetime_elements()) do
+    table.insert(elements, e)
+  end
+
+  return elements
+end
 
 wezterm.on("update-status", function(window, pane)
   local _, output = wezterm.run_child_process({
@@ -238,20 +274,35 @@ return ""
 
   local result = output and output:gsub("^%s*(.-)%s*$", "%1") or ""
 
+  -- No media playing - show Ollama + Battery + datetime only
   if result == "" then
-    window:set_right_status(wezterm.format({
-      { Foreground = { Color = "#565f89" } },
-      { Text = wezterm.strftime("%a %b %-d %I:%M %p") .. "  " },
-    }))
+    local elements = {}
+    for _, e in ipairs(ollama.get_status_elements()) do
+      table.insert(elements, e)
+    end
+    for _, e in ipairs(battery.get_status_with_separator()) do
+      table.insert(elements, e)
+    end
+    for _, e in ipairs(ollama.get_datetime_elements()) do
+      table.insert(elements, e)
+    end
+    window:set_right_status(wezterm.format(elements))
     return
   end
 
   local app, track, playing = result:match("^([^|]+)|(.+)|(%a+)$")
   if not app or not track then
-    window:set_right_status(wezterm.format({
-      { Foreground = { Color = "#565f89" } },
-      { Text = wezterm.strftime("%a %b %-d %I:%M %p") .. "  " },
-    }))
+    local elements = {}
+    for _, e in ipairs(ollama.get_status_elements()) do
+      table.insert(elements, e)
+    end
+    for _, e in ipairs(battery.get_status_with_separator()) do
+      table.insert(elements, e)
+    end
+    for _, e in ipairs(ollama.get_datetime_elements()) do
+      table.insert(elements, e)
+    end
+    window:set_right_status(wezterm.format(elements))
     return
   end
   local is_playing = playing == "true"
@@ -278,16 +329,22 @@ return ""
     media_state.eq_frame = (media_state.eq_frame % #eq_frames) + 1
   end
 
-  window:set_right_status(wezterm.format({
+  -- Build elements: media + Ollama + datetime
+  local elements = {
     { Foreground = { Color = media.color } },
     { Text = media.icon .. " " },
     { Foreground = { Color = media.color } },
     { Text = eq .. "  " },
     { Foreground = { Color = "#c0caf5" } },
     { Text = display },
-    { Foreground = { Color = "#565f89" } },
-    { Text = "  │  " .. wezterm.strftime("%a %b %-d %H:%M") .. "  " },
-  }))
+  }
+
+  -- Add Ollama status + datetime suffix
+  for _, e in ipairs(build_status_suffix()) do
+    table.insert(elements, e)
+  end
+
+  window:set_right_status(wezterm.format(elements))
 end)
 
 -- ============================================
@@ -315,5 +372,36 @@ smart_splits.apply_to_config(config, {
     resize = "ALT",
   },
 })
+
+-- ============================================
+-- Ollama Integration
+-- ============================================
+
+-- Apply plugin config (disables default LEADER keybindings)
+local ollama_opts = ollama.apply_to_config(config, {
+  default_model = "deepseek-r1:7b",
+  keys = {
+    select_model = false,  -- We'll use OPT|SHIFT instead
+    quick_chat = false,
+  },
+})
+
+-- Custom keybindings (Option+Shift+key, same as media controls)
+table.insert(config.keys, {
+  key = "i",
+  mods = "OPT|SHIFT",
+  action = ollama.create_model_selector_action(ollama_opts),
+})
+table.insert(config.keys, {
+  key = "o",
+  mods = "OPT|SHIFT",
+  action = ollama.create_quick_chat_action(ollama_opts),
+})
+
+-- ============================================
+-- Battery Integration
+-- ============================================
+
+battery.apply_to_config(config, battery_config)
 
 return config
