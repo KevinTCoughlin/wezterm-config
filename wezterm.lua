@@ -238,7 +238,8 @@ local media_icons = {
 }
 
 wezterm.on("update-status", function(window, pane)
-  local ok, output = wezterm.run_child_process({
+  -- Debug: always show something
+  local ok, output, stderr = wezterm.run_child_process({
     "osascript", "-e", [[
       tell application "System Events"
         -- Check Music
@@ -279,12 +280,19 @@ wezterm.on("update-status", function(window, pane)
   if result == "" then
     window:set_right_status(wezterm.format({
       { Foreground = { Color = "#565f89" } },
-      { Text = wezterm.strftime("%a %b %-d %H:%M") .. "  " },
+      { Text = wezterm.strftime("%a %b %-d %I:%M %p") .. "  " },
     }))
     return
   end
 
-  local app, track, playing = result:match("^([^|]+)|(.+)|(.+)$")
+  local app, track, playing = result:match("^([^|]+)|(.-)|(true|false)$")
+  if not app or not track then
+    window:set_right_status(wezterm.format({
+      { Foreground = { Color = "#565f89" } },
+      { Text = wezterm.strftime("%a %b %-d %I:%M %p") .. "  " },
+    }))
+    return
+  end
   local is_playing = playing == "true"
   local media = media_icons[app] or media_icons.music
 
