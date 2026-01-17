@@ -1,0 +1,3 @@
+[submodule "plugins/wezterm-ollama"]
+	path = plugins/wezterm-ollama
+	url = https://github.com/kevintcoughlin/wezterm-ollama.git
