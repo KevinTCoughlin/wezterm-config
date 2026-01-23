@@ -51,23 +51,23 @@ config.window_decorations = "RESIZE"
 config.initial_cols = 120
 config.initial_rows = 20
 
--- Position window in bottom-right quarter on launch
-wezterm.on("gui-startup", function(cmd)
-  local screen = wezterm.gui.screens().active
-  local tab, pane, window = wezterm.mux.spawn_window(cmd or {})
-  local gui = window:gui_window()
-
-  -- Get actual window dimensions after spawn
-  local dims = gui:get_dimensions()
-  local win_width = dims.pixel_width
-  local win_height = dims.pixel_height
-
-  -- Position: right-aligned, bottom of screen (with small margin)
-  local margin = 10
-  local x = screen.x + screen.width - win_width - margin
-  local y = screen.y + screen.height - win_height - margin
-  gui:set_position(x, y)
-end)
+-- Position window in bottom-right quarter on launch (disabled on Windows - causes off-screen issues)
+-- wezterm.on("gui-startup", function(cmd)
+--   local screen = wezterm.gui.screens().active
+--   local tab, pane, window = wezterm.mux.spawn_window(cmd or {})
+--   local gui = window:gui_window()
+--
+--   -- Get actual window dimensions after spawn
+--   local dims = gui:get_dimensions()
+--   local win_width = dims.pixel_width
+--   local win_height = dims.pixel_height
+--
+--   -- Position: right-aligned, bottom of screen (with small margin)
+--   local margin = 10
+--   local x = screen.x + screen.width - win_width - margin
+--   local y = screen.y + screen.height - win_height - margin
+--   gui:set_position(x, y)
+-- end)
 config.window_padding = {
   left = 10,
   right = 10,
@@ -92,7 +92,7 @@ config.cursor_blink_rate = 500
 -- Performance
 -- ============================================
 
-config.front_end = "WebGpu"
+config.front_end = "Software"  -- Fallback if GPU rendering fails
 config.webgpu_power_preference = "HighPerformance"
 config.animation_fps = 60
 config.max_fps = 120
