@@ -11,3 +11,5 @@
 # Editor
 *.swp
 *~
+helpers/
+wezterm.minimal.lua
