@@ -2,46 +2,15 @@
 local wezterm = require("wezterm")
 local config = wezterm.config_builder()
 
--- Platform detection
-local is_windows = wezterm.target_triple:find("windows") ~= nil
-local is_macos = wezterm.target_triple:find("darwin") ~= nil
-
--- Plugins (load conditionally based on platform)
+-- Plugins
 local smart_splits = wezterm.plugin.require("https://github.com/mrjones2014/smart-splits.nvim")
-local rose_pine = wezterm.plugin.require("https://github.com/neapsix/wezterm").main
-
--- macOS-only plugins
-local ollama, battery
-if is_macos then
-  ollama = dofile(wezterm.config_dir .. "/plugins/wezterm-ollama/plugin/init.lua")
-  battery = dofile(wezterm.config_dir .. "/plugins/wezterm-battery/plugin/init.lua")
-end
-
--- Optional blackjack plugin (cross-platform)
-local blackjack_ok, blackjack = pcall(function()
-  return wezterm.plugin.require("https://github.com/KevinTCoughlin/wezterm-blackjack")
-end)
-
--- Media keybindings (macOS only, Option+Shift+key)
--- Customize keys/modifiers to your preference
-local media_keys = nil
-if is_macos then
-  media_keys = {
-    mods = "OPT|SHIFT",      -- modifier combo
-    play_pause = "Space",    -- Opt+Shift+Space
-    next_track = "n",        -- Opt+Shift+n
-    prev_track = "p",        -- Opt+Shift+p
-    vol_up = "=",            -- Opt+Shift+=
-    vol_down = "-",          -- Opt+Shift+-
-  }
-end
+-- local apple_media = require("plugins.apple-media")  -- using inline implementation
 
 -- ============================================
 -- Appearance
 -- ============================================
 
--- Rose Pine theme (https://github.com/neapsix/wezterm)
-config.colors = rose_pine.colors()
+config.color_scheme = "Tokyo Night"
 config.font = wezterm.font("JetBrains Mono", { weight = "Regular" })
 config.font_size = 14.0
 config.line_height = 1.1
@@ -75,9 +44,7 @@ config.window_padding = {
   bottom = 10,
 }
 config.window_background_opacity = 0.95
-if is_macos then
-  config.macos_window_background_blur = 20
-end
+config.macos_window_background_blur = 20
 
 -- Tab bar
 config.use_fancy_tab_bar = false
@@ -101,12 +68,7 @@ config.max_fps = 120
 -- Shell
 -- ============================================
 
-if is_windows then
-  -- Use Git Bash for consistent shell experience with macOS
-  config.default_prog = { "C:/Program Files/Git/bin/bash.exe", "--login", "-i" }
-else
-  config.default_prog = { "/bin/zsh", "-l" }
-end
+config.default_prog = { "/bin/zsh", "-l" }
 
 -- ============================================
 -- Key Bindings
@@ -157,143 +119,148 @@ config.keys = {
 
   -- Command palette
   { key = ":", mods = "LEADER|SHIFT", action = wezterm.action.ActivateCommandPalette },
-}
 
--- macOS-specific key bindings
-if is_macos and media_keys then
-  -- Media controls (Apple Music)
-  table.insert(config.keys, { key = media_keys.play_pause, mods = media_keys.mods, action = wezterm.action_callback(function()
-    wezterm.run_child_process({ "osascript", "-e", 'tell application "Music" to playpause' })
-  end) })
-  table.insert(config.keys, { key = media_keys.next_track, mods = media_keys.mods, action = wezterm.action_callback(function()
-    wezterm.run_child_process({ "osascript", "-e", 'tell application "Music" to next track' })
-  end) })
-  table.insert(config.keys, { key = media_keys.prev_track, mods = media_keys.mods, action = wezterm.action_callback(function()
-    wezterm.run_child_process({ "osascript", "-e", 'tell application "Music" to previous track' })
-  end) })
-  table.insert(config.keys, { key = media_keys.vol_up, mods = media_keys.mods, action = wezterm.action_callback(function()
-    wezterm.run_child_process({ "osascript", "-e", 'tell application "Music" to set sound volume to (sound volume + 10)' })
-  end) })
-  table.insert(config.keys, { key = media_keys.vol_down, mods = media_keys.mods, action = wezterm.action_callback(function()
-    wezterm.run_child_process({ "osascript", "-e", 'tell application "Music" to set sound volume to (sound volume - 10)' })
-  end) })
+  -- Media controls (Apple Music/Podcasts/TV) - using CTRL|SHIFT to avoid tmux conflict
+  { key = "m", mods = "CTRL|SHIFT", action = wezterm.action_callback(function()
+    wezterm.run_child_process({ "osascript", "-e", [[
+      tell application "System Events"
+        if exists process "Music" then
+          tell application "Music" to if player state is playing or player state is paused then playpause
+        end if
+        if exists process "Podcasts" then
+          tell application "Podcasts" to if player state is playing or player state is paused then playpause
+        end if
+        if exists process "TV" then
+          tell application "TV" to if player state is playing or player state is paused then playpause
+        end if
+      end tell
+    ]] })
+  end) },
+  { key = ".", mods = "CTRL|SHIFT", action = wezterm.action_callback(function()
+    wezterm.run_child_process({ "osascript", "-e", [[
+      tell application "System Events"
+        if exists process "Music" then
+          tell application "Music" to if player state is playing or player state is paused then next track
+        end if
+        if exists process "Podcasts" then
+          tell application "Podcasts" to if player state is playing or player state is paused then next track
+        end if
+        if exists process "TV" then
+          tell application "TV" to if player state is playing or player state is paused then next track
+        end if
+      end tell
+    ]] })
+  end) },
+  { key = ",", mods = "CTRL|SHIFT", action = wezterm.action_callback(function()
+    wezterm.run_child_process({ "osascript", "-e", [[
+      tell application "System Events"
+        if exists process "Music" then
+          tell application "Music" to if player state is playing or player state is paused then previous track
+        end if
+        if exists process "Podcasts" then
+          tell application "Podcasts" to if player state is playing or player state is paused then previous track
+        end if
+        if exists process "TV" then
+          tell application "TV" to if player state is playing or player state is paused then previous track
+        end if
+      end tell
+    ]] })
+  end) },
+  { key = "=", mods = "CTRL|SHIFT", action = wezterm.action_callback(function()
+    wezterm.run_child_process({ "osascript", "-e", [[
+      tell application "System Events"
+        if exists process "Music" then
+          tell application "Music" to if player state is playing or player state is paused then set sound volume to (sound volume + 10)
+        end if
+        if exists process "Podcasts" then
+          tell application "Podcasts" to if player state is playing or player state is paused then set sound volume to (sound volume + 10)
+        end if
+        if exists process "TV" then
+          tell application "TV" to if player state is playing or player state is paused then set sound volume to (sound volume + 10)
+        end if
+      end tell
+    ]] })
+  end) },
+  { key = "-", mods = "CTRL|SHIFT", action = wezterm.action_callback(function()
+    wezterm.run_child_process({ "osascript", "-e", [[
+      tell application "System Events"
+        if exists process "Music" then
+          tell application "Music" to if player state is playing or player state is paused then set sound volume to (sound volume - 10)
+        end if
+        if exists process "Podcasts" then
+          tell application "Podcasts" to if player state is playing or player state is paused then set sound volume to (sound volume - 10)
+        end if
+        if exists process "TV" then
+          tell application "TV" to if player state is playing or player state is paused then set sound volume to (sound volume - 10)
+        end if
+      end tell
+    ]] })
+  end) },
 
   -- macOS natural text editing
-  table.insert(config.keys, { key = "LeftArrow", mods = "OPT", action = wezterm.action.SendKey({ key = "b", mods = "ALT" }) })
-  table.insert(config.keys, { key = "RightArrow", mods = "OPT", action = wezterm.action.SendKey({ key = "f", mods = "ALT" }) })
-  table.insert(config.keys, { key = "LeftArrow", mods = "CMD", action = wezterm.action.SendKey({ key = "Home" }) })
-  table.insert(config.keys, { key = "RightArrow", mods = "CMD", action = wezterm.action.SendKey({ key = "End" }) })
-  table.insert(config.keys, { key = "Backspace", mods = "CMD", action = wezterm.action.SendKey({ key = "u", mods = "CTRL" }) })
-end
-
--- Blackjack plugin (cross-platform)
-if blackjack_ok and blackjack then
-  blackjack.apply_to_config(config, {
-    keybind = { key = "b", mods = "LEADER" },
-    status_bar = { enabled = false },
-  })
-end
+  { key = "LeftArrow", mods = "OPT", action = wezterm.action.SendKey({ key = "b", mods = "ALT" }) },
+  { key = "RightArrow", mods = "OPT", action = wezterm.action.SendKey({ key = "f", mods = "ALT" }) },
+  { key = "LeftArrow", mods = "CMD", action = wezterm.action.SendKey({ key = "Home" }) },
+  { key = "RightArrow", mods = "CMD", action = wezterm.action.SendKey({ key = "End" }) },
+  { key = "Backspace", mods = "CMD", action = wezterm.action.SendKey({ key = "u", mods = "CTRL" }) },
+}
 
 -- ============================================
 -- Mouse
 -- ============================================
 
-config.mouse_bindings = {}
-
-if is_macos then
-  -- Cmd-click to open hyperlinks (macOS)
-  table.insert(config.mouse_bindings, {
+config.mouse_bindings = {
+  -- Cmd-click to open hyperlinks
+  {
     event = { Up = { streak = 1, button = "Left" } },
     mods = "CMD",
     action = wezterm.action.OpenLinkAtMouseCursor,
-  })
-else
-  -- Ctrl-click to open hyperlinks (Windows/Linux)
-  table.insert(config.mouse_bindings, {
-    event = { Up = { streak = 1, button = "Left" } },
-    mods = "CTRL",
-    action = wezterm.action.OpenLinkAtMouseCursor,
-  })
-end
+  },
+}
 
 -- ============================================
--- Status Bar (Platform-specific)
+-- Apple Music Status Bar
 -- ============================================
 
-if is_macos then
-  -- macOS: Apple Music Status Bar with Ollama + Battery
+-- Marquee configuration
+local media_config = {
+  scroll_width = 40,       -- visible characters for track display
+  update_interval = 1000,  -- 1Hz - sufficient for 1 char/sec scroll
+  poll_every_n = 2,        -- poll media every N updates (~2 sec)
+}
 
-  -- User configuration
-  local media_config = {
-    scroll_speed = 3,        -- characters to scroll per tick (1 = slow, 5 = fast)
-    scroll_width = 35,       -- visible characters for track display
-    update_interval = 150,   -- ms between updates (lower = smoother)
-    eq_style = "wave",       -- "wave", "thin", "classic", "dots", "mini"
-  }
+config.status_update_interval = media_config.update_interval
 
-  -- Battery configuration
-  local battery_config = {
-    show_percentage = true,     -- show numeric percentage
-    show_time = false,          -- show time remaining
-    use_granular_icons = true,  -- icons change based on level
-    low_threshold = 20,         -- orange warning below this
-    critical_threshold = 10,    -- red warning below this
-    colors = {
-      charging = "#9ece6a",     -- green
-      discharging = "#7aa2f7",  -- blue
-      full = "#9ece6a",         -- green
-      low = "#e0af68",          -- orange
-      critical = "#f7768e",     -- red
-      percentage = "#c0caf5",   -- text
-    },
-  }
+local media_state = {
+  position = 0,
+  cached_track = "",
+  cached_playing = false,
+  update_count = 0,
+}
 
-  config.status_update_interval = media_config.update_interval
+wezterm.on("update-status", function(window, pane)
+  window:set_left_status("")
 
-  local media_state = { position = 0, last_track = "", eq_frame = 1 }
-  local eq_styles = {
-    wave = { "∿∿∿", "∾∿∿", "∿∾∿", "∿∿∾" },
-    thin = { "▏▎▍", "▎▍▌", "▍▌▋", "▌▋▊", "▋▊▉", "▊▉▊", "▉▊▋", "▊▋▌", "▋▌▍", "▌▍▎", "▍▎▏", "▎▏▎" },
-    classic = { "▁▃▅", "▂▅▃", "▃▂▅", "▅▃▂", "▃▅▃", "▂▃▅" },
-    dots = { "●○●", "○●○", "●●○", "○●●", "●○○", "○○●" },
-    mini = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" },
-  }
-  local eq_frames = eq_styles[media_config.eq_style] or eq_styles.wave
-
-  local media_icons = {
-    music = { icon = "󰎆", color = "#7aa2f7" },
-    podcast = { icon = "󰦔", color = "#e0af68" },
-    tv = { icon = "󰕼", color = "#f7768e" },
-  }
-
-  -- Helper to build status elements with Ollama + Battery + datetime
-  local function build_status_suffix()
-    local elements = {}
-
-    -- Separator
-    table.insert(elements, { Foreground = { Color = "#565f89" } })
-    table.insert(elements, { Text = "  │  " })
-
-    -- Ollama status
-    for _, e in ipairs(ollama.get_status_elements()) do
-      table.insert(elements, e)
-    end
-
-    -- Battery status (with separator)
-    for _, e in ipairs(battery.get_status_with_separator()) do
-      table.insert(elements, e)
-    end
-
-    -- Datetime
-    for _, e in ipairs(ollama.get_datetime_elements()) do
-      table.insert(elements, e)
-    end
-
-    return elements
+  -- Succinct datetime based on window width
+  local dims = window:get_dimensions()
+  local cols = dims.cols or 120
+  local time_fmt
+  if cols < 80 then
+    time_fmt = "%-I:%M%p"
+  elseif cols < 100 then
+    time_fmt = "%-m/%-d %-I:%M%p"
+  else
+    time_fmt = "%a %-m/%-d %-I:%M%p"
   end
+  local datetime = wezterm.strftime(time_fmt):gsub("AM", "a"):gsub("PM", "p")
 
-  wezterm.on("update-status", function(window, pane)
-    local _, output = wezterm.run_child_process({
+  -- Poll media only every N updates
+  media_state.update_count = media_state.update_count + 1
+  local should_poll = media_state.update_count >= media_config.poll_every_n
+  if should_poll then
+    media_state.update_count = 0
+
+    local ok, output, stderr = wezterm.run_child_process({
       "osascript",
       "-e", [[
 tell application "System Events"
@@ -304,7 +271,7 @@ if musicRunning then
   tell application "Music"
     set ps to player state
     if ps is playing or ps is paused then
-      return "music|" & (name of current track) & " — " & (artist of current track) & "|" & (ps is playing)
+      return (name of current track) & " — " & (artist of current track) & "|" & (ps is playing)
     end if
   end tell
 end if
@@ -312,7 +279,7 @@ if tvRunning then
   tell application "TV"
     set ps to player state
     if ps is playing or ps is paused then
-      return "tv|" & (name of current track) & " — " & (album of current track) & "|" & (ps is playing)
+      return (name of current track) & " — " & (album of current track) & "|" & (ps is playing)
     end if
   end tell
 end if
@@ -321,92 +288,57 @@ return ""
     })
 
     local result = output and output:gsub("^%s*(.-)%s*$", "%1") or ""
-
-    -- No media playing - show Ollama + Battery + datetime only
-    if result == "" then
-      local elements = {}
-      for _, e in ipairs(ollama.get_status_elements()) do
-        table.insert(elements, e)
+    if result ~= "" then
+      local track, playing = result:match("^(.+)|(%a+)")
+      if track then
+        if track ~= media_state.cached_track then
+          media_state.cached_track = track
+          media_state.position = 0
+        end
+        media_state.cached_playing = (playing == "true")
       end
-      for _, e in ipairs(battery.get_status_with_separator()) do
-        table.insert(elements, e)
-      end
-      for _, e in ipairs(ollama.get_datetime_elements()) do
-        table.insert(elements, e)
-      end
-      window:set_right_status(wezterm.format(elements))
-      return
+    else
+      media_state.cached_track = ""
+      media_state.cached_playing = false
     end
+  end
 
-    local app, track, playing = result:match("^([^|]+)|(.+)|(%a+)$")
-    if not app or not track then
-      local elements = {}
-      for _, e in ipairs(ollama.get_status_elements()) do
-        table.insert(elements, e)
-      end
-      for _, e in ipairs(battery.get_status_with_separator()) do
-        table.insert(elements, e)
-      end
-      for _, e in ipairs(ollama.get_datetime_elements()) do
-        table.insert(elements, e)
-      end
-      window:set_right_status(wezterm.format(elements))
-      return
-    end
-    local is_playing = playing == "true"
-    local media = media_icons[app] or media_icons.music
-
-    -- Reset scroll position on track change
-    if track ~= media_state.last_track then
-      media_state.last_track = track
-      media_state.position = 0
-    end
-
-    -- Scrolling marquee
-    local display = track
-    if #track > media_config.scroll_width then
-      local padding = "  ·  "
-      local scroll = track .. padding .. track
-      display = scroll:sub(media_state.position + 1, media_state.position + media_config.scroll_width)
-      media_state.position = (media_state.position + media_config.scroll_speed) % (#track + #padding)
-    end
-
-    -- Animate equalizer
-    local eq = is_playing and eq_frames[media_state.eq_frame] or "⏸"
-    if is_playing then
-      media_state.eq_frame = (media_state.eq_frame % #eq_frames) + 1
-    end
-
-    -- Build elements: media + Ollama + datetime
-    local elements = {
-      { Foreground = { Color = media.color } },
-      { Text = media.icon .. " " },
-      { Foreground = { Color = media.color } },
-      { Text = eq .. "  " },
-      { Foreground = { Color = "#c0caf5" } },
-      { Text = display },
-    }
-
-    -- Add Ollama status + datetime suffix
-    for _, e in ipairs(build_status_suffix()) do
-      table.insert(elements, e)
-    end
-
-    window:set_right_status(wezterm.format(elements))
-  end)
-
-  -- Apply Battery config (macOS only)
-  battery.apply_to_config(config, battery_config)
-else
-  -- Windows/Linux: Simple datetime status bar
-  wezterm.on("update-status", function(window, pane)
-    local date = wezterm.strftime("%Y-%m-%d %H:%M")
+  -- No media? Just show time
+  if media_state.cached_track == "" then
     window:set_right_status(wezterm.format({
-      { Foreground = { Color = "#c0caf5" } },
-      { Text = date .. "  " },
+      { Foreground = { Color = "#565f89" } },
+      { Text = datetime .. "  " },
     }))
-  end)
-end
+    return
+  end
+
+  local track = media_state.cached_track
+  local is_playing = media_state.cached_playing
+
+  -- Dynamic scroll width based on window size
+  local scroll_width = media_config.scroll_width
+  if cols < 80 then
+    scroll_width = 20
+  elseif cols < 100 then
+    scroll_width = 30
+  end
+
+  -- Scrolling marquee (always scroll if track is long)
+  local display = track
+  if #track > scroll_width then
+    local padding = "     "
+    local scroll = track .. padding .. track
+    display = scroll:sub(media_state.position + 1, media_state.position + scroll_width)
+    media_state.position = (media_state.position + 1) % (#track + #padding)
+  end
+
+  window:set_right_status(wezterm.format({
+    { Foreground = { Color = "#c0caf5" } },
+    { Text = display },
+    { Foreground = { Color = "#565f89" } },
+    { Text = " | " .. datetime .. "  " },
+  }))
+end)
 
 -- ============================================
 -- Misc
@@ -433,32 +365,5 @@ smart_splits.apply_to_config(config, {
     resize = "ALT",
   },
 })
-
--- ============================================
--- Ollama Integration (macOS only)
--- ============================================
-
-if is_macos and ollama then
-  -- Apply plugin config (disables default LEADER keybindings)
-  local ollama_opts = ollama.apply_to_config(config, {
-    default_model = "deepseek-r1:7b",
-    keys = {
-      select_model = false,  -- We'll use OPT|SHIFT instead
-      quick_chat = false,
-    },
-  })
-
-  -- Custom keybindings (Option+Shift+key, same as media controls)
-  table.insert(config.keys, {
-    key = "i",
-    mods = "OPT|SHIFT",
-    action = ollama.create_model_selector_action(ollama_opts),
-  })
-  table.insert(config.keys, {
-    key = "o",
-    mods = "OPT|SHIFT",
-    action = ollama.create_quick_chat_action(ollama_opts),
-  })
-end
 
 return config
