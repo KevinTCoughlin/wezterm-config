@@ -227,6 +227,7 @@ local media_config = {
   scroll_width = 40,       -- visible characters for track display
   update_interval = 1000,  -- 1Hz - sufficient for 1 char/sec scroll
   poll_every_n = 2,        -- poll media every N updates (~2 sec)
+  color = "#565f89",       -- status bar text color (subtle)
 }
 
 config.status_update_interval = media_config.update_interval
@@ -306,7 +307,7 @@ return ""
   -- No media? Just show time
   if media_state.cached_track == "" then
     window:set_right_status(wezterm.format({
-      { Foreground = { Color = "#565f89" } },
+      { Foreground = { Color = media_config.color } },
       { Text = datetime .. "  " },
     }))
     return
@@ -333,10 +334,8 @@ return ""
   end
 
   window:set_right_status(wezterm.format({
-    { Foreground = { Color = "#c0caf5" } },
-    { Text = display },
-    { Foreground = { Color = "#565f89" } },
-    { Text = " | " .. datetime .. "  " },
+    { Foreground = { Color = media_config.color } },
+    { Text = display .. " | " .. datetime .. "  " },
   }))
 end)
 
