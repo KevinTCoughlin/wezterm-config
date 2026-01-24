@@ -80,6 +80,10 @@ Leader key: `Ctrl+a`
 git clone https://github.com/KevinTCoughlin/wezterm-config.git ~/.config/wezterm
 ```
 
+## Support
+
+If you find this useful, consider [sponsoring](https://github.com/sponsors/KevinTCoughlin).
+
 ## License
 
 MIT
