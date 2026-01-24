@@ -1,0 +1,13 @@
+# Backups
+*.backup.lua
+*.bak
+
+# Local overrides
+*.local.lua
+
+# OS
+.DS_Store
+
+# Editor
+*.swp
+*~
