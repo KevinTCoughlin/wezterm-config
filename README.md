@@ -40,6 +40,7 @@ local media_config = {
   scroll_width = 40,       -- visible characters for track display
   update_interval = 1000,  -- 1Hz (1 char/sec scroll)
   poll_every_n = 2,        -- poll media every N updates (~2 sec)
+  color = "#565f89",       -- status bar text color
 }
 ```
 
