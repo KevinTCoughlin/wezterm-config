@@ -63,8 +63,19 @@ config.cursor_blink_rate = 500
 -- Performance
 -- ─────────────────────────────────────────────────────────────────────────────
 config.front_end = "WebGpu"
+config.webgpu_power_preference = "HighPerformance"
 config.max_fps = 120
 config.animation_fps = 60
+config.mux_output_parser_coalesce_delay_ms = 0
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Modern protocols & rendering
+-- ─────────────────────────────────────────────────────────────────────────────
+config.enable_kitty_keyboard = true
+config.unicode_version = 16
+config.custom_block_glyphs = true
+config.freetype_load_target = "Light"
+config.freetype_load_flags = "NO_HINTING"
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Shell
@@ -121,5 +132,13 @@ config.scrollback_lines = 10000
 config.enable_scroll_bar = false
 config.audible_bell = "Disabled"
 config.check_for_updates = false
+config.detect_password_input = true
+config.normalize_output_to_unicode_nfc = true
+
+-- Quick select patterns (Ctrl+Shift+Space)
+config.quick_select_patterns = {
+  "[0-9a-f]{7,40}",  -- git hashes
+  "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",  -- UUIDs
+}
 
 return config
