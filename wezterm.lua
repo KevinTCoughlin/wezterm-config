@@ -106,7 +106,7 @@ config.freetype_load_flags = "NO_HINTING"
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Shell
 -- ─────────────────────────────────────────────────────────────────────────────
-config.default_prog = { "/bin/zsh", "-l" }
+config.default_prog = { "pwsh.exe", "-NoLogo" }
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Shell integration (semantic zones, clickable prompts, CWD tracking)
