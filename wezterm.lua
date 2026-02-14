@@ -74,8 +74,14 @@ config.mux_output_parser_coalesce_delay_ms = 0
 config.enable_kitty_keyboard = true
 config.unicode_version = 16
 config.custom_block_glyphs = true
-config.freetype_load_target = "Light"
-config.freetype_load_flags = "NO_HINTING"
+
+-- Platform-aware font rendering
+if wezterm.target_triple:find("windows") then
+  config.freetype_load_target = "Normal"
+else
+  config.freetype_load_target = "Light"
+  config.freetype_load_flags = "NO_HINTING"
+end
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Shell
