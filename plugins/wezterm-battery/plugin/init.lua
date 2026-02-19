@@ -25,51 +25,60 @@ M._URL = "https://github.com/KevinTCoughlin/wezterm-battery"
 
 local defaults = {
   -- Display options
-  show_percentage = true,     -- Show numeric percentage
-  show_time = false,          -- Show remaining time (if available)
+  show_percentage = false, -- Show numeric percentage
+  show_time = false, -- Show remaining time (if available)
+
+  -- Color mode: "level" colors by charge level (green/yellow/red),
+  --             "state" colors by charge state (charging/discharging/etc),
+  --             "monochrome" uses a single color for everything
+  color_mode = "level", -- "level", "state", or "monochrome"
+  monochrome_color = "#565f89", -- Color used in monochrome mode
+
+  -- Append charging indicator (⚡) to icon when charging
+  show_charging_indicator = true,
 
   -- Battery thresholds
-  low_threshold = 20,         -- Percentage to trigger "low" state
-  critical_threshold = 10,    -- Percentage to trigger "critical" state
+  low_threshold = 20, -- Percentage to trigger "low" state
+  critical_threshold = 10, -- Percentage to trigger "critical" state
 
   -- Icons by state
   icons = {
-    charging = "󰂄",           -- nf-md-battery_charging
-    discharging = "󰁹",        -- nf-md-battery
-    full = "󰁹",               -- nf-md-battery
-    low = "󰂃",                -- nf-md-battery_alert
-    critical = "󰂃",           -- nf-md-battery_alert
-    unknown = "󰂑",            -- nf-md-battery_unknown
+    charging = "󰂄", -- nf-md-battery_charging
+    discharging = "󰁹", -- nf-md-battery
+    full = "󰁹", -- nf-md-battery
+    low = "󰂃", -- nf-md-battery_alert
+    critical = "󰂃", -- nf-md-battery_alert
+    unknown = "󰂑", -- nf-md-battery_unknown
   },
 
   -- Granular discharge icons (by level)
   discharge_icons = {
-    "󰂎",  -- 0-10%   nf-md-battery_outline
-    "󰁺",  -- 10-20%  nf-md-battery_10
-    "󰁻",  -- 20-30%  nf-md-battery_20
-    "󰁼",  -- 30-40%  nf-md-battery_30
-    "󰁽",  -- 40-50%  nf-md-battery_40
-    "󰁾",  -- 50-60%  nf-md-battery_50
-    "󰁿",  -- 60-70%  nf-md-battery_60
-    "󰂀",  -- 70-80%  nf-md-battery_70
-    "󰂁",  -- 80-90%  nf-md-battery_80
-    "󰂂",  -- 90-100% nf-md-battery_90
-    "󰁹",  -- 100%    nf-md-battery
+    "󰂎", -- 0-10%   nf-md-battery_outline
+    "󰁺", -- 10-20%  nf-md-battery_10
+    "󰁻", -- 20-30%  nf-md-battery_20
+    "󰁼", -- 30-40%  nf-md-battery_30
+    "󰁽", -- 40-50%  nf-md-battery_40
+    "󰁾", -- 50-60%  nf-md-battery_50
+    "󰁿", -- 60-70%  nf-md-battery_60
+    "󰂀", -- 70-80%  nf-md-battery_70
+    "󰂁", -- 80-90%  nf-md-battery_80
+    "󰂂", -- 90-100% nf-md-battery_90
+    "󰁹", -- 100%    nf-md-battery
   },
 
   -- Granular charge icons (by level)
   charge_icons = {
-    "󰢟",  -- 0-10%   nf-md-battery_charging_outline
-    "󰢜",  -- 10-20%  nf-md-battery_charging_10
-    "󰂆",  -- 20-30%  nf-md-battery_charging_20
-    "󰂇",  -- 30-40%  nf-md-battery_charging_30
-    "󰂈",  -- 40-50%  nf-md-battery_charging_40
-    "󰢝",  -- 50-60%  nf-md-battery_charging_50
-    "󰂉",  -- 60-70%  nf-md-battery_charging_60
-    "󰢞",  -- 70-80%  nf-md-battery_charging_70
-    "󰂊",  -- 80-90%  nf-md-battery_charging_80
-    "󰂋",  -- 90-100% nf-md-battery_charging_90
-    "󰂅",  -- 100%    nf-md-battery_charging_100
+    "󰢟", -- 0-10%   nf-md-battery_charging_outline
+    "󰢜", -- 10-20%  nf-md-battery_charging_10
+    "󰂆", -- 20-30%  nf-md-battery_charging_20
+    "󰂇", -- 30-40%  nf-md-battery_charging_30
+    "󰂈", -- 40-50%  nf-md-battery_charging_40
+    "󰢝", -- 50-60%  nf-md-battery_charging_50
+    "󰂉", -- 60-70%  nf-md-battery_charging_60
+    "󰢞", -- 70-80%  nf-md-battery_charging_70
+    "󰂊", -- 80-90%  nf-md-battery_charging_80
+    "󰂋", -- 90-100% nf-md-battery_charging_90
+    "󰂅", -- 100%    nf-md-battery_charging_100
   },
 
   -- Use granular icons instead of single state icon
@@ -77,19 +86,24 @@ local defaults = {
 
   -- Colors by state (Tokyo Night defaults)
   colors = {
-    charging = "#9ece6a",     -- Green
-    discharging = "#7aa2f7",  -- Blue
-    full = "#9ece6a",         -- Green
-    low = "#e0af68",          -- Orange/Yellow
-    critical = "#f7768e",     -- Red
-    unknown = "#565f89",      -- Gray
-    percentage = "#c0caf5",   -- Light text
-    time = "#565f89",         -- Gray
-    separator = "#565f89",    -- Gray
+    charging = "#9ece6a", -- Green
+    discharging = "#7aa2f7", -- Blue
+    full = "#9ece6a", -- Green
+    low = "#e0af68", -- Orange/Yellow
+    critical = "#f7768e", -- Red
+    unknown = "#565f89", -- Gray
+    percentage = "#c0caf5", -- Light text
+    time = "#565f89", -- Gray
+    separator = "#565f89", -- Gray
+
+    -- Level-based colors (used when color_mode = "level")
+    level_high = "#9ece6a", -- Green (above low_threshold)
+    level_mid = "#e0af68", -- Yellow (low_threshold..critical_threshold)
+    level_low = "#f7768e", -- Red (below critical_threshold)
   },
 
   -- Update interval (handled by wezterm status_update_interval)
-  cache_ttl = 5,              -- Seconds to cache battery info
+  cache_ttl = 5, -- Seconds to cache battery info
 }
 
 -- ============================================
@@ -98,7 +112,7 @@ local defaults = {
 
 local state = {
   percentage = nil,
-  status = "unknown",         -- charging, discharging, full, unknown
+  status = "unknown", -- charging, discharging, full, unknown
   time_remaining = nil,
   last_check = 0,
   is_present = false,
@@ -145,7 +159,7 @@ local function fetch_battery_info(opts)
   local batteries = wezterm.battery_info()
 
   if batteries and #batteries > 0 then
-    local battery = batteries[1]  -- Use first battery
+    local battery = batteries[1] -- Use first battery
 
     state.is_present = true
     state.percentage = math.floor(battery.state_of_charge * 100 + 0.5)
@@ -200,23 +214,33 @@ local function get_icon(opts, percentage, status)
     local icon_set = status == "charging" and opts.charge_icons or opts.discharge_icons
     local index = math.floor(percentage / 10) + 1
     index = math.max(1, math.min(index, #icon_set))
-    return icon_set[index]
+    local icon = icon_set[index]
+    if opts.show_charging_indicator and status == "charging" then
+      icon = icon .. "⚡"
+    end
+    return icon
   end
 
   -- Fall back to state-based icons
+  local icon
   if status == "charging" then
-    return opts.icons.charging
+    icon = opts.icons.charging
   elseif status == "full" then
-    return opts.icons.full
+    icon = opts.icons.full
   elseif percentage <= opts.critical_threshold then
-    return opts.icons.critical
+    icon = opts.icons.critical
   elseif percentage <= opts.low_threshold then
-    return opts.icons.low
+    icon = opts.icons.low
   elseif status == "discharging" then
-    return opts.icons.discharging
+    icon = opts.icons.discharging
+  else
+    icon = opts.icons.unknown
   end
 
-  return opts.icons.unknown
+  if opts.show_charging_indicator and status == "charging" then
+    icon = icon .. "⚡"
+  end
+  return icon
 end
 
 -- ============================================
@@ -228,6 +252,23 @@ local function get_color(opts, percentage, status)
     return opts.colors.unknown
   end
 
+  -- Monochrome: single color for everything
+  if opts.color_mode == "monochrome" then
+    return opts.monochrome_color
+  end
+
+  -- Level-based: green/yellow/red by charge percentage
+  if opts.color_mode == "level" then
+    if percentage <= opts.critical_threshold then
+      return opts.colors.level_low
+    elseif percentage <= opts.low_threshold then
+      return opts.colors.level_mid
+    else
+      return opts.colors.level_high
+    end
+  end
+
+  -- State-based (default fallback)
   if status == "charging" then
     return opts.colors.charging
   elseif status == "full" then
@@ -267,7 +308,8 @@ function M.get_status_elements(opts)
   -- Percentage
   if opts.show_percentage and info.percentage then
     table.insert(elements, { Text = " " })
-    table.insert(elements, { Foreground = { Color = opts.colors.percentage } })
+    local pct_color = opts.color_mode == "state" and opts.colors.percentage or color
+    table.insert(elements, { Foreground = { Color = pct_color } })
     table.insert(elements, { Text = tostring(info.percentage) .. "%" })
   end
 

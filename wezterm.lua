@@ -44,8 +44,7 @@ config.tab_max_width = 24
 -- Clean tab titles: "1:dirname" or "1:process"
 wezterm.on("format-tab-title", function(tab)
   local pane = tab.active_pane
-  local title = pane.current_working_dir
-    and pane.current_working_dir.file_path:match("([^/]+)/?$")
+  local title = pane.current_working_dir and pane.current_working_dir.file_path:match("([^/]+)/?$")
     or pane.foreground_process_name:match("([^/]+)$")
     or "term"
   return string.format(" %d:%s ", tab.tab_index + 1, title:sub(1, 18))
@@ -57,18 +56,26 @@ local ollama_opts = ollama.apply_to_config(config)
 local battery_opts = battery.apply_to_config(config)
 
 wezterm.on("update-status", function(window, pane)
-  local e = apple_media.get_elements(am_opts)
+  local e = { { Text = "  " } }
+  local am = apple_media.get_elements(am_opts)
+  for _, elem in ipairs(am) do
+    table.insert(e, elem)
+  end
 
   -- Battery
   local batt = battery.get_status_with_separator(battery_opts)
-  for _, elem in ipairs(batt) do table.insert(e, elem) end
+  for _, elem in ipairs(batt) do
+    table.insert(e, elem)
+  end
 
   -- Ollama
   local ollama_elems = ollama.get_status_elements(ollama_opts)
   if #ollama_elems > 0 then
     table.insert(e, { Foreground = { Color = "#565f89" } })
     table.insert(e, { Text = "  │  " })
-    for _, elem in ipairs(ollama_elems) do table.insert(e, elem) end
+    for _, elem in ipairs(ollama_elems) do
+      table.insert(e, elem)
+    end
   end
 
   table.insert(e, { Text = "  " })
@@ -93,15 +100,9 @@ config.mux_output_parser_coalesce_delay_ms = 0
 config.enable_kitty_keyboard = false
 config.unicode_version = 16
 config.custom_block_glyphs = true
-
 -- Platform-aware font rendering
-if wezterm.target_triple:find("windows") then
-  config.freetype_load_target = "Normal"
-else
-  config.freetype_load_target = "Light"
-  config.freetype_load_flags = "NO_HINTING"
-end
-
+config.freetype_load_target = "Light"
+config.freetype_load_flags = "NO_HINTING"
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Shell
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -196,16 +197,20 @@ config.swallow_mouse_click_on_pane_focus = true
 config.canonicalize_pasted_newlines = "LineFeed"
 config.inactive_pane_hsb = { saturation = 0.9, brightness = 0.8 }
 config.skip_close_confirmation_for_processes_named = {
-  "bash", "sh", "zsh", "fish", "nu",
+  "bash",
+  "sh",
+  "zsh",
+  "fish",
+  "nu",
 }
 
 -- Quick select patterns (Ctrl+Shift+Space)
 config.quick_select_patterns = {
-  "[0-9a-f]{7,40}",  -- git hashes
-  "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",  -- UUIDs
-  "\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}",  -- IPv4
-  "[\\w.-]+\\.[a-z]{2,}(?:/[\\w.-]*)*",  -- URLs/domains
-  "/[\\w.-/]+",  -- file paths
+  "[0-9a-f]{7,40}", -- git hashes
+  "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", -- UUIDs
+  "\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}", -- IPv4
+  "[\\w.-]+\\.[a-z]{2,}(?:/[\\w.-]*)*", -- URLs/domains
+  "/[\\w.-/]+", -- file paths
 }
 
 return config

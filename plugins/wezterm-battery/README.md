@@ -4,11 +4,13 @@ Battery status indicator for WezTerm status bar.
 
 ## Features
 
-- Battery percentage display with state-based coloring
+- Battery percentage display (hidden by default, opt-in)
+- Three color modes: level-based (green/yellow/red), state-based, or monochrome
 - Granular icons that change based on charge level
+- Charging indicator (⚡) appended to icon when plugged in
 - Configurable thresholds for low/critical warnings
 - Optional time remaining display
-- macOS support via `pmset`
+- Cross-platform support via `wezterm.battery_info()`
 
 ## Installation
 
@@ -34,10 +36,9 @@ battery.apply_to_config(config)
 
 -- Or with custom options
 battery.apply_to_config(config, {
-  show_percentage = true,
-  show_time = true,
-  low_threshold = 25,
-  critical_threshold = 10,
+  show_percentage = true,      -- default: false
+  color_mode = "level",        -- "level", "state", or "monochrome"
+  show_charging_indicator = true,  -- append ⚡ when charging
 })
 ```
 
@@ -67,8 +68,11 @@ end)
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `show_percentage` | boolean | `true` | Show numeric percentage |
+| `show_percentage` | boolean | `false` | Show numeric percentage |
 | `show_time` | boolean | `false` | Show remaining time |
+| `color_mode` | string | `"level"` | `"level"` (green/yellow/red), `"state"` (by charge state), or `"monochrome"` |
+| `monochrome_color` | string | `"#565f89"` | Color used in monochrome mode |
+| `show_charging_indicator` | boolean | `true` | Append ⚡ to icon when charging |
 | `low_threshold` | number | `20` | Percentage for "low" state |
 | `critical_threshold` | number | `10` | Percentage for "critical" state |
 | `use_granular_icons` | boolean | `true` | Use level-based icons |
@@ -107,14 +111,22 @@ Customize colors for each state:
 ```lua
 battery.apply_to_config(config, {
   colors = {
+    -- State-based colors (color_mode = "state")
     charging = "#9ece6a",     -- Green
     discharging = "#7aa2f7",  -- Blue
     full = "#9ece6a",         -- Green
     low = "#e0af68",          -- Orange
     critical = "#f7768e",     -- Red
     unknown = "#565f89",      -- Gray
-    percentage = "#c0caf5",   -- Text color for percentage
-    time = "#565f89",         -- Text color for time remaining
+
+    -- Level-based colors (color_mode = "level")
+    level_high = "#9ece6a",   -- Green (above low_threshold)
+    level_mid = "#e0af68",    -- Yellow (low_threshold..critical_threshold)
+    level_low = "#f7768e",    -- Red (below critical_threshold)
+
+    -- Text colors
+    percentage = "#c0caf5",   -- Percentage text (state mode only)
+    time = "#565f89",         -- Time remaining text
     separator = "#565f89",    -- Separator color
   },
 })
@@ -149,7 +161,7 @@ Returns raw battery info:
 
 ## Platform Support
 
-Currently macOS only (uses `pmset -g batt`). Linux support can be added by parsing `/sys/class/power_supply/`.
+Cross-platform via WezTerm's built-in `wezterm.battery_info()` API (macOS, Linux, Windows).
 
 ## License
 
