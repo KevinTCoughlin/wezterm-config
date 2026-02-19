@@ -81,6 +81,8 @@ local state = {
   eq_frame = 1,
   is_playing = false,
   app = nil,
+  media_cache = nil,
+  media_cache_time = 0,
 }
 
 -------------------------------------------------------------------------------
@@ -224,9 +226,20 @@ end
 -------------------------------------------------------------------------------
 
 local function build_status(opts)
-  local info = get_media_info()
+  local now = os.time()
+  if now - state.media_cache_time < 5 then
+    -- Use cached result; still advance EQ frame below
+  else
+    state.media_cache = get_media_info()
+    state.media_cache_time = now
+  end
+  local info = state.media_cache
   if not info then
-    state = { position = 0, last_track = "", eq_frame = 1, is_playing = false, app = nil }
+    state.position = 0
+    state.last_track = ""
+    state.eq_frame = 1
+    state.is_playing = false
+    state.app = nil
     return nil
   end
 
@@ -271,46 +284,42 @@ end
 -- Public API
 -------------------------------------------------------------------------------
 
-function M.apply_to_config(config, user_opts)
-  local opts = merge_opts(user_opts)
-  config.status_update_interval = opts.update_interval
+function M.get_elements(opts)
+  local m = build_status(opts)
+  local e = {}
+  local colors = opts.colors
 
-  wezterm.on("update-status", function(window, pane)
-    local m = build_status(opts)
-    local e = {}
-    local colors = opts.colors
-
-    if m then
-      -- App icon
-      if opts.show_app_icon then
-        local icon = ICONS.music
-        local icon_color = colors.music
-        if m.app == "podcast" then
-          icon = ICONS.podcast
-          icon_color = colors.podcast
-        elseif m.app == "tv" then
-          icon = ICONS.tv
-          icon_color = colors.tv
-        end
-        table.insert(e, { Foreground = { Color = icon_color } })
-        table.insert(e, { Text = icon .. " " })
+  if m then
+    -- App icon
+    if opts.show_app_icon then
+      local icon = ICONS.music
+      local icon_color = colors.music
+      if m.app == "podcast" then
+        icon = ICONS.podcast
+        icon_color = colors.podcast
+      elseif m.app == "tv" then
+        icon = ICONS.tv
+        icon_color = colors.tv
       end
+      table.insert(e, { Foreground = { Color = icon_color } })
+      table.insert(e, { Text = icon .. " " })
+    end
 
-      -- Equalizer
-      table.insert(e, { Foreground = { Color = colors.eq } })
-      table.insert(e, { Text = m.eq .. "  " })
+    -- Equalizer
+    table.insert(e, { Foreground = { Color = colors.eq } })
+    table.insert(e, { Text = m.eq .. "  " })
 
-      -- Controls
-      if opts.show_controls then
-        table.insert(e, { Foreground = { Color = colors.controls } })
-        table.insert(e, { Text = ICONS.prev .. " " })
+    -- Controls
+    if opts.show_controls then
+      table.insert(e, { Foreground = { Color = colors.controls } })
+      table.insert(e, { Text = ICONS.prev .. " " })
 
-        table.insert(e, { Foreground = { Color = m.playing and colors.pause or colors.play } })
-        table.insert(e, { Text = (m.playing and ICONS.pause or ICONS.play) .. " " })
+      table.insert(e, { Foreground = { Color = m.playing and colors.pause or colors.play } })
+      table.insert(e, { Text = (m.playing and ICONS.pause or ICONS.play) .. " " })
 
-        table.insert(e, { Foreground = { Color = colors.controls } })
-        table.insert(e, { Text = ICONS.next .. "  " })
-      end
+      table.insert(e, { Foreground = { Color = colors.controls } })
+      table.insert(e, { Text = ICONS.next .. "  " })
+    end
 
       -- Track/Episode/Video
       table.insert(e, { Foreground = { Color = colors.track } })
@@ -328,11 +337,23 @@ function M.apply_to_config(config, user_opts)
 
     if opts.show_date then
       table.insert(e, { Foreground = { Color = colors.date } })
-      table.insert(e, { Text = wezterm.strftime(opts.date_format) .. "  " })
+      table.insert(e, { Text = wezterm.strftime(opts.date_format) })
     end
 
-    window:set_right_status(wezterm.format(e))
-  end)
+  return e
+end
+
+function M.apply_to_config(config, user_opts)
+  local opts = merge_opts(user_opts)
+  config.status_update_interval = opts.update_interval
+
+  if not opts.skip_handler then
+    wezterm.on("update-status", function(window, pane)
+      window:set_right_status(wezterm.format(M.get_elements(opts)))
+    end)
+  end
+
+  return opts
 end
 
 function M.setup_keys(config, mods)

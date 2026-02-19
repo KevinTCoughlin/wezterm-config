@@ -1,14 +1,20 @@
--- Minimal wezterm config (~60 lines)
--- Terminal renders text. That's it.
+-- WezTerm config — native multiplexer, no tmux needed
+-- Apple Media, Ollama, and Battery plugins for status bar
 
 local wezterm = require("wezterm")
+local apple_media = require("plugins.apple-media")
+local ollama = require("plugins.wezterm-ollama/plugin/init")
+local battery = require("plugins.wezterm-battery/plugin/init")
 local config = wezterm.config_builder()
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Appearance
 -- ─────────────────────────────────────────────────────────────────────────────
 config.color_scheme = "Tokyo Night"
-config.font = wezterm.font("JetBrains Mono", { weight = "Regular" })
+config.font = wezterm.font_with_fallback({
+  { family = "JetBrains Mono", weight = "Regular" },
+  "Symbols Nerd Font Mono",
+})
 config.font_size = 14.0
 config.line_height = 1.1
 
@@ -45,15 +51,28 @@ wezterm.on("format-tab-title", function(tab)
   return string.format(" %d:%s ", tab.tab_index + 1, title:sub(1, 18))
 end)
 
--- Status bar: calls external script (Unix-y, reusable)
-config.status_update_interval = 5000  -- 5 sec, not 150ms
-wezterm.on("update-status", function(window)
-  local success, stdout = wezterm.run_child_process({ os.getenv("HOME") .. "/.local/bin/wezterm-status" })
-  local status = success and stdout:gsub("%s+$", "") or ""
-  window:set_right_status(wezterm.format({
-    { Foreground = { Color = "#7aa2f7" } },
-    { Text = status .. "  " },
-  }))
+-- Status bar: apple-media + ollama + battery (unified handler)
+local am_opts = apple_media.apply_to_config(config, { skip_handler = true })
+local ollama_opts = ollama.apply_to_config(config)
+local battery_opts = battery.apply_to_config(config)
+
+wezterm.on("update-status", function(window, pane)
+  local e = apple_media.get_elements(am_opts)
+
+  -- Battery
+  local batt = battery.get_status_with_separator(battery_opts)
+  for _, elem in ipairs(batt) do table.insert(e, elem) end
+
+  -- Ollama
+  local ollama_elems = ollama.get_status_elements(ollama_opts)
+  if #ollama_elems > 0 then
+    table.insert(e, { Foreground = { Color = "#565f89" } })
+    table.insert(e, { Text = "  │  " })
+    for _, elem in ipairs(ollama_elems) do table.insert(e, elem) end
+  end
+
+  table.insert(e, { Text = "  " })
+  window:set_right_status(wezterm.format(e))
 end)
 
 config.default_cursor_style = "BlinkingBar"
@@ -71,7 +90,7 @@ config.mux_output_parser_coalesce_delay_ms = 0
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Modern protocols & rendering
 -- ─────────────────────────────────────────────────────────────────────────────
-config.enable_kitty_keyboard = true
+config.enable_kitty_keyboard = false
 config.unicode_version = 16
 config.custom_block_glyphs = true
 
@@ -89,7 +108,12 @@ end
 config.default_prog = { "/bin/zsh", "-l" }
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- Keys (minimal, tmux-like)
+-- Shell integration (semantic zones, clickable prompts, CWD tracking)
+-- ─────────────────────────────────────────────────────────────────────────────
+config.term = "xterm-256color"
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Keys (native multiplexer, vim-style)
 -- ─────────────────────────────────────────────────────────────────────────────
 config.leader = { key = "a", mods = "CTRL", timeout_milliseconds = 1000 }
 
@@ -113,14 +137,40 @@ config.keys = {
   -- Copy mode
   { key = "v", mods = "LEADER", action = wezterm.action.ActivateCopyMode },
 
+  -- Resize panes
+  { key = "H", mods = "LEADER|SHIFT", action = wezterm.action.AdjustPaneSize({ "Left", 5 }) },
+  { key = "J", mods = "LEADER|SHIFT", action = wezterm.action.AdjustPaneSize({ "Down", 5 }) },
+  { key = "K", mods = "LEADER|SHIFT", action = wezterm.action.AdjustPaneSize({ "Up", 5 }) },
+  { key = "L", mods = "LEADER|SHIFT", action = wezterm.action.AdjustPaneSize({ "Right", 5 }) },
+
   -- Tabs
   { key = "c", mods = "LEADER", action = wezterm.action.SpawnTab("CurrentPaneDomain") },
   { key = "n", mods = "LEADER", action = wezterm.action.ActivateTabRelative(1) },
   { key = "p", mods = "LEADER", action = wezterm.action.ActivateTabRelative(-1) },
 
+  -- Tab by number
+  { key = "1", mods = "LEADER", action = wezterm.action.ActivateTab(0) },
+  { key = "2", mods = "LEADER", action = wezterm.action.ActivateTab(1) },
+  { key = "3", mods = "LEADER", action = wezterm.action.ActivateTab(2) },
+  { key = "4", mods = "LEADER", action = wezterm.action.ActivateTab(3) },
+  { key = "5", mods = "LEADER", action = wezterm.action.ActivateTab(4) },
+
+  -- Command palette
+  { key = ":", mods = "LEADER|SHIFT", action = wezterm.action.ActivateCommandPalette },
+
   -- Reload
   { key = "r", mods = "LEADER", action = wezterm.action.ReloadConfiguration },
+
+  -- macOS natural text editing
+  { key = "LeftArrow", mods = "OPT", action = wezterm.action.SendKey({ key = "b", mods = "ALT" }) },
+  { key = "RightArrow", mods = "OPT", action = wezterm.action.SendKey({ key = "f", mods = "ALT" }) },
+  { key = "LeftArrow", mods = "CMD", action = wezterm.action.SendKey({ key = "Home" }) },
+  { key = "RightArrow", mods = "CMD", action = wezterm.action.SendKey({ key = "End" }) },
+  { key = "Backspace", mods = "CMD", action = wezterm.action.SendKey({ key = "u", mods = "CTRL" }) },
 }
+
+-- Media controls (C-a m/>/</+/_)
+apple_media.setup_keys(config, "LEADER")
 
 -- Cmd-click opens links (macOS)
 config.mouse_bindings = {
@@ -134,17 +184,28 @@ config.mouse_bindings = {
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Misc
 -- ─────────────────────────────────────────────────────────────────────────────
-config.scrollback_lines = 10000
+config.scrollback_lines = 50000
 config.enable_scroll_bar = false
 config.audible_bell = "Disabled"
 config.check_for_updates = false
 config.detect_password_input = true
 config.normalize_output_to_unicode_nfc = true
+config.adjust_window_size_when_changing_font_size = false
+config.hide_mouse_cursor_when_typing = true
+config.swallow_mouse_click_on_pane_focus = true
+config.canonicalize_pasted_newlines = "LineFeed"
+config.inactive_pane_hsb = { saturation = 0.9, brightness = 0.8 }
+config.skip_close_confirmation_for_processes_named = {
+  "bash", "sh", "zsh", "fish", "nu",
+}
 
 -- Quick select patterns (Ctrl+Shift+Space)
 config.quick_select_patterns = {
   "[0-9a-f]{7,40}",  -- git hashes
   "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",  -- UUIDs
+  "\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}",  -- IPv4
+  "[\\w.-]+\\.[a-z]{2,}(?:/[\\w.-]*)*",  -- URLs/domains
+  "/[\\w.-/]+",  -- file paths
 }
 
 return config
