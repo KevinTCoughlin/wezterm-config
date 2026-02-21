@@ -1,8 +1,7 @@
 -- WezTerm config — native multiplexer, no tmux needed
--- Apple Media, Ollama, and Battery plugins for status bar
+-- Ollama and Battery plugins for status bar
 
 local wezterm = require("wezterm")
-local apple_media = require("plugins.apple-media")
 local ollama = require("plugins.wezterm-ollama/plugin/init")
 local battery = require("plugins.wezterm-battery/plugin/init")
 local config = wezterm.config_builder()
@@ -21,7 +20,6 @@ config.line_height = 1.1
 config.window_decorations = "RESIZE"
 config.window_padding = { left = 10, right = 10, top = 10, bottom = 10 }
 config.window_background_opacity = 0.95
-config.macos_window_background_blur = 20
 
 -- Tab bar colors (Tokyo Night aligned)
 config.colors = {
@@ -50,17 +48,12 @@ wezterm.on("format-tab-title", function(tab)
   return string.format(" %d:%s ", tab.tab_index + 1, title:sub(1, 18))
 end)
 
--- Status bar: apple-media + ollama + battery (unified handler)
-local am_opts = apple_media.apply_to_config(config, { skip_handler = true })
+-- Status bar plugins
 local ollama_opts = ollama.apply_to_config(config)
 local battery_opts = battery.apply_to_config(config)
 
 wezterm.on("update-status", function(window, pane)
   local e = { { Text = "  " } }
-  local am = apple_media.get_elements(am_opts)
-  for _, elem in ipairs(am) do
-    table.insert(e, elem)
-  end
 
   -- Battery
   local batt = battery.get_status_with_separator(battery_opts)
@@ -106,7 +99,6 @@ config.freetype_load_flags = "NO_HINTING"
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Shell
 -- ─────────────────────────────────────────────────────────────────────────────
-config.default_prog = { "pwsh.exe", "-NoLogo" }
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Shell integration (semantic zones, clickable prompts, CWD tracking)
@@ -161,25 +153,6 @@ config.keys = {
 
   -- Reload
   { key = "r", mods = "LEADER", action = wezterm.action.ReloadConfiguration },
-
-  -- macOS natural text editing
-  { key = "LeftArrow", mods = "OPT", action = wezterm.action.SendKey({ key = "b", mods = "ALT" }) },
-  { key = "RightArrow", mods = "OPT", action = wezterm.action.SendKey({ key = "f", mods = "ALT" }) },
-  { key = "LeftArrow", mods = "CMD", action = wezterm.action.SendKey({ key = "Home" }) },
-  { key = "RightArrow", mods = "CMD", action = wezterm.action.SendKey({ key = "End" }) },
-  { key = "Backspace", mods = "CMD", action = wezterm.action.SendKey({ key = "u", mods = "CTRL" }) },
-}
-
--- Media controls (C-a m/>/</+/_)
-apple_media.setup_keys(config, "LEADER")
-
--- Cmd-click opens links (macOS)
-config.mouse_bindings = {
-  {
-    event = { Up = { streak = 1, button = "Left" } },
-    mods = "CMD",
-    action = wezterm.action.OpenLinkAtMouseCursor,
-  },
 }
 
 -- ─────────────────────────────────────────────────────────────────────────────
