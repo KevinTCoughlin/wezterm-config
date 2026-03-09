@@ -14,6 +14,7 @@
 --   apple_music.setup_keys(config)
 
 local wezterm = require("wezterm")
+local lib = require("plugins.lib")
 local M = {}
 
 -- Default configuration
@@ -61,7 +62,8 @@ local ICONS = {
 }
 
 -- State
-local state = { position = 0, last_track = "", eq_frame = 1, is_playing = false }
+local state_template = { position = 0, last_track = "", eq_frame = 1, is_playing = false }
+local state = lib.create_state_factory(state_template)()
 
 local function get_volume_icon(vol)
   if vol == 0 then return ICONS.vol_mute
@@ -94,13 +96,13 @@ local function get_music_info()
       end tell
     ]]
   })
-  return ok and out:gsub("^%s*(.-)%s*$", "%1") or "OFF"
+  return ok and lib.trim(out) or "OFF"
 end
 
 local function build_status(opts)
   local info = get_music_info()
   if info == "OFF" then
-    state = { position = 0, last_track = "", eq_frame = 1, is_playing = false }
+    lib.reset_state(state, state_template)
     return nil
   end
 
@@ -134,7 +136,7 @@ local function build_status(opts)
 end
 
 function M.apply_to_config(config, user_opts)
-  local opts = setmetatable(user_opts or {}, { __index = defaults })
+  local opts = lib.merge_opts_meta(defaults, user_opts)
   config.status_update_interval = opts.update_interval
 
   local ctrl_path = opts.controls_path
@@ -148,58 +150,38 @@ function M.apply_to_config(config, user_opts)
 
     if m then
       -- Equalizer
-      table.insert(e, { Foreground = { Color = opts.color_eq } })
-      table.insert(e, { Text = m.eq .. "  " })
+      lib.add_element(e, opts.color_eq, m.eq .. "  ")
 
       -- Controls
       if opts.show_controls then
         -- Prev
-        table.insert(e, { Foreground = { Color = opts.color_prev_next } })
-        table.insert(e, { Attribute = { Hyperlink = prev_url } })
-        table.insert(e, { Text = ICONS.prev })
-        table.insert(e, "ResetAttributes")
-
-        table.insert(e, { Text = " " })
+        lib.add_hyperlink(e, opts.color_prev_next, ICONS.prev, prev_url)
+        lib.add_element(e, nil, " ")
 
         -- Play/Pause
-        if m.playing then
-          table.insert(e, { Foreground = { Color = opts.color_pause } })
-        else
-          table.insert(e, { Foreground = { Color = opts.color_play } })
-        end
-        table.insert(e, { Attribute = { Hyperlink = play_url } })
-        table.insert(e, { Text = m.playing and ICONS.pause or ICONS.play })
-        table.insert(e, "ResetAttributes")
-
-        table.insert(e, { Text = " " })
+        local play_pause_color = m.playing and opts.color_pause or opts.color_play
+        lib.add_hyperlink(e, play_pause_color, m.playing and ICONS.pause or ICONS.play, play_url)
+        lib.add_element(e, nil, " ")
 
         -- Next
-        table.insert(e, { Foreground = { Color = opts.color_prev_next } })
-        table.insert(e, { Attribute = { Hyperlink = next_url } })
-        table.insert(e, { Text = ICONS.next })
-        table.insert(e, "ResetAttributes")
-
-        table.insert(e, { Text = "  " })
+        lib.add_hyperlink(e, opts.color_prev_next, ICONS.next, next_url)
+        lib.add_element(e, nil, "  ")
       end
 
       -- Track
-      table.insert(e, { Foreground = { Color = opts.color_track } })
-      table.insert(e, { Text = m.track })
+      lib.add_element(e, opts.color_track, m.track)
 
       -- Volume
       if opts.show_volume then
-        table.insert(e, { Foreground = { Color = opts.color_volume } })
-        table.insert(e, { Text = "  " .. get_volume_icon(m.volume) })
+        lib.add_element(e, opts.color_volume, "  " .. get_volume_icon(m.volume))
       end
 
-      table.insert(e, { Foreground = { Color = opts.color_date } })
-      table.insert(e, { Text = "  │  " })
+      lib.add_separator(e, opts.color_date)
     end
 
     -- Date
     if opts.show_date then
-      table.insert(e, { Foreground = { Color = opts.color_date } })
-      table.insert(e, { Text = wezterm.strftime(opts.date_format) .. "  " })
+      lib.add_element(e, opts.color_date, wezterm.strftime(opts.date_format) .. "  ")
     end
 
     window:set_right_status(wezterm.format(e))

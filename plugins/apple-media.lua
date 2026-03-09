@@ -9,6 +9,7 @@
 --   apple_media.setup_keys(config)
 
 local wezterm = require("wezterm")
+local lib = require("plugins.lib")
 local M = {}
 
 -------------------------------------------------------------------------------
@@ -75,13 +76,15 @@ local ICONS = {
 -- State
 -------------------------------------------------------------------------------
 
-local state = {
+local state_template = {
   position = 0,
   last_track = "",
   eq_frame = 1,
   is_playing = false,
   app = nil,
 }
+
+local state = lib.create_state_factory(state_template)()
 
 -------------------------------------------------------------------------------
 -- Helpers
@@ -94,21 +97,6 @@ local function get_volume_icon(vol)
   else return ICONS.vol_high end
 end
 
-local function merge_opts(user_opts)
-  local opts = {}
-  for k, v in pairs(defaults) do
-    if type(v) == "table" then
-      opts[k] = {}
-      for kk, vv in pairs(v) do opts[k][kk] = vv end
-      if user_opts and user_opts[k] then
-        for kk, vv in pairs(user_opts[k]) do opts[k][kk] = vv end
-      end
-    else
-      opts[k] = (user_opts and user_opts[k] ~= nil) and user_opts[k] or v
-    end
-  end
-  return opts
-end
 
 -------------------------------------------------------------------------------
 -- Media Detection
@@ -171,7 +159,7 @@ local function get_media_info()
   })
 
   if not ok then return nil end
-  local result = out:gsub("^%s*(.-)%s*$", "%1")
+  local result = lib.trim(out)
   if result == "OFF" or result == "" then return nil end
 
   local app, playing, vol, title, subtitle = result:match("^([^|]+)|([^|]+)|([^|]+)|([^|]*)|(.*)$")
@@ -226,7 +214,7 @@ end
 local function build_status(opts)
   local info = get_media_info()
   if not info then
-    state = { position = 0, last_track = "", eq_frame = 1, is_playing = false, app = nil }
+    lib.reset_state(state, state_template)
     return nil
   end
 
@@ -272,7 +260,7 @@ end
 -------------------------------------------------------------------------------
 
 function M.apply_to_config(config, user_opts)
-  local opts = merge_opts(user_opts)
+  local opts = lib.merge_opts(defaults, user_opts)
   config.status_update_interval = opts.update_interval
 
   wezterm.on("update-status", function(window, pane)
@@ -292,43 +280,32 @@ function M.apply_to_config(config, user_opts)
           icon = ICONS.tv
           icon_color = colors.tv
         end
-        table.insert(e, { Foreground = { Color = icon_color } })
-        table.insert(e, { Text = icon .. " " })
+        lib.add_element(e, icon_color, icon .. " ")
       end
 
       -- Equalizer
-      table.insert(e, { Foreground = { Color = colors.eq } })
-      table.insert(e, { Text = m.eq .. "  " })
+      lib.add_element(e, colors.eq, m.eq .. "  ")
 
       -- Controls
       if opts.show_controls then
-        table.insert(e, { Foreground = { Color = colors.controls } })
-        table.insert(e, { Text = ICONS.prev .. " " })
-
-        table.insert(e, { Foreground = { Color = m.playing and colors.pause or colors.play } })
-        table.insert(e, { Text = (m.playing and ICONS.pause or ICONS.play) .. " " })
-
-        table.insert(e, { Foreground = { Color = colors.controls } })
-        table.insert(e, { Text = ICONS.next .. "  " })
+        lib.add_element(e, colors.controls, ICONS.prev .. " ")
+        lib.add_element(e, m.playing and colors.pause or colors.play, (m.playing and ICONS.pause or ICONS.play) .. " ")
+        lib.add_element(e, colors.controls, ICONS.next .. "  ")
       end
 
       -- Track/Episode/Video
-      table.insert(e, { Foreground = { Color = colors.track } })
-      table.insert(e, { Text = m.display })
+      lib.add_element(e, colors.track, m.display)
 
       -- Volume
       if opts.show_volume then
-        table.insert(e, { Foreground = { Color = colors.volume } })
-        table.insert(e, { Text = "  " .. get_volume_icon(m.volume) })
+        lib.add_element(e, colors.volume, "  " .. get_volume_icon(m.volume))
       end
 
-      table.insert(e, { Foreground = { Color = colors.date } })
-      table.insert(e, { Text = "  │  " })
+      lib.add_separator(e, colors.date)
     end
 
     if opts.show_date then
-      table.insert(e, { Foreground = { Color = colors.date } })
-      table.insert(e, { Text = wezterm.strftime(opts.date_format) .. "  " })
+      lib.add_element(e, colors.date, wezterm.strftime(opts.date_format) .. "  ")
     end
 
     window:set_right_status(wezterm.format(e))
