@@ -1,7 +1,8 @@
 -- WezTerm config — native multiplexer, no tmux needed
--- Ollama and Battery plugins for status bar
+-- Material You, Ollama, and Battery plugins for status bar
 
 local wezterm = require("wezterm")
+local material_you = require("plugins.material-you.init")
 local ollama = require("plugins.wezterm-ollama/plugin/init")
 local battery = require("plugins.wezterm-battery/plugin/init")
 local config = wezterm.config_builder()
@@ -21,17 +22,8 @@ config.window_decorations = "RESIZE"
 config.window_padding = { left = 10, right = 10, top = 10, bottom = 10 }
 config.window_background_opacity = 0.95
 
--- Tab bar colors (Tokyo Night aligned)
-config.colors = {
-  tab_bar = {
-    background = "#1a1b26",
-    active_tab = { bg_color = "#7aa2f7", fg_color = "#1a1b26" },
-    inactive_tab = { bg_color = "#1a1b26", fg_color = "#565f89" },
-    inactive_tab_hover = { bg_color = "#24283b", fg_color = "#c0caf5" },
-    new_tab = { bg_color = "#1a1b26", fg_color = "#565f89" },
-    new_tab_hover = { bg_color = "#24283b", fg_color = "#c0caf5" },
-  },
-}
+-- Tab bar colors
+local myu_colors = material_you.apply_to_config(config)
 
 -- Tab bar (minimal)
 config.use_fancy_tab_bar = false
@@ -52,7 +44,16 @@ end)
 local ollama_opts = ollama.apply_to_config(config)
 local battery_opts = battery.apply_to_config(config)
 
+-- GPG fingerprint — left status (first half, zbase32)
+local GPG_Z32 = "kjozyuuhmosuu7rz"
+
 wezterm.on("update-status", function(window, pane)
+  window:set_left_status(wezterm.format({
+    { Attribute = { Intensity = "Half" } },
+    { Text = " 󰯄 " .. GPG_Z32 .. "  " },
+    "ResetAttributes",
+  }))
+
   local e = { { Text = "  " } }
 
   -- Battery
@@ -64,7 +65,7 @@ wezterm.on("update-status", function(window, pane)
   -- Ollama
   local ollama_elems = ollama.get_status_elements(ollama_opts)
   if #ollama_elems > 0 then
-    table.insert(e, { Foreground = { Color = "#565f89" } })
+    table.insert(e, { Foreground = { Color = myu_colors.separator } })
     table.insert(e, { Text = "  │  " })
     for _, elem in ipairs(ollama_elems) do
       table.insert(e, elem)

@@ -8,7 +8,6 @@
 --   - Cross-platform support via wezterm.battery_info()
 
 local wezterm = require("wezterm")
-local lib = require("plugins.lib")
 
 local M = {}
 
@@ -111,7 +110,7 @@ local defaults = {
 -- State Management
 -- ============================================
 
-local state_template = {
+local state = {
   percentage = nil,
   status = "unknown", -- charging, discharging, full, unknown
   time_remaining = nil,
@@ -119,8 +118,29 @@ local state_template = {
   is_present = false,
 }
 
-local state = lib.create_state_factory(state_template)()
+-- Deep merge user options with defaults
+local function merge_opts(user_opts)
+  user_opts = user_opts or {}
+  local opts = {}
 
+  for k, v in pairs(defaults) do
+    if type(v) == "table" then
+      opts[k] = {}
+      for tk, tv in pairs(v) do
+        opts[k][tk] = tv
+      end
+      if user_opts[k] and type(user_opts[k]) == "table" then
+        for tk, tv in pairs(user_opts[k]) do
+          opts[k][tk] = tv
+        end
+      end
+    else
+      opts[k] = user_opts[k] ~= nil and user_opts[k] or v
+    end
+  end
+
+  return opts
+end
 
 -- Resolved options (set after apply_to_config)
 local resolved_opts = nil
@@ -282,19 +302,22 @@ function M.get_status_elements(opts)
   local color = get_color(opts, info.percentage, info.status)
 
   -- Icon
-  lib.add_element(elements, color, icon)
+  table.insert(elements, { Foreground = { Color = color } })
+  table.insert(elements, { Text = icon })
 
   -- Percentage
   if opts.show_percentage and info.percentage then
-    lib.add_element(elements, nil, " ")
+    table.insert(elements, { Text = " " })
     local pct_color = opts.color_mode == "state" and opts.colors.percentage or color
-    lib.add_element(elements, pct_color, tostring(info.percentage) .. "%")
+    table.insert(elements, { Foreground = { Color = pct_color } })
+    table.insert(elements, { Text = tostring(info.percentage) .. "%" })
   end
 
   -- Time remaining
   if opts.show_time and info.time_remaining then
-    lib.add_element(elements, nil, " ")
-    lib.add_element(elements, opts.colors.time, "(" .. info.time_remaining .. ")")
+    table.insert(elements, { Text = " " })
+    table.insert(elements, { Foreground = { Color = opts.colors.time } })
+    table.insert(elements, { Text = "(" .. info.time_remaining .. ")" })
   end
 
   return elements
@@ -309,8 +332,10 @@ function M.get_status_with_separator(opts)
     return {}
   end
 
-  local elements = {}
-  lib.add_separator(elements, opts.colors.separator)
+  local elements = {
+    { Foreground = { Color = opts.colors.separator } },
+    { Text = "  │  " },
+  }
 
   for _, e in ipairs(battery_elements) do
     table.insert(elements, e)
@@ -324,7 +349,7 @@ end
 -- ============================================
 
 function M.apply_to_config(config, user_opts)
-  local opts = lib.merge_opts(defaults, user_opts)
+  local opts = merge_opts(user_opts)
   resolved_opts = opts
   return opts
 end
