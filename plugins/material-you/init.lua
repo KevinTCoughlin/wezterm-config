@@ -3,6 +3,7 @@
 -- and maps it to WezTerm's tab_bar colors.
 
 local wezterm = require("wezterm")
+local lib = require("plugins.lib")
 
 local M = {}
 
@@ -11,7 +12,9 @@ local M = {}
 -- ============================================
 
 local defaults = {
-  json_path = "/tmp/kde-material-you-colors-" .. (os.getenv("USER") or "unknown") .. ".json",
+  -- Use XDG_RUNTIME_DIR if available (safer than /tmp), fallback to ~/.cache
+  json_path = (os.getenv("XDG_RUNTIME_DIR") or (os.getenv("HOME") .. "/.cache")) .. 
+             "/kde-material-you-colors-" .. (os.getenv("USER") or "unknown") .. ".json",
   scheme = "dark",
 }
 
@@ -49,16 +52,23 @@ local resolved_colors = nil
 local function read_colors(path)
   local f = io.open(path, "r")
   if not f then
+    if lib.debug_mode then
+      wezterm.log_error("[DEBUG] Cannot open color file: " .. path)
+    end
     return nil
   end
   local content = f:read("*a")
   f:close()
   if not content or content == "" then
+    if lib.debug_mode then
+      wezterm.log_error("[DEBUG] Color file is empty: " .. path)
+    end
     return nil
   end
 
   local parse_ok, data = pcall(wezterm.json_parse, content)
   if not parse_ok or not data then
+    wezterm.log_error("[WARN] Failed to parse color JSON: " .. path)
     return nil
   end
 

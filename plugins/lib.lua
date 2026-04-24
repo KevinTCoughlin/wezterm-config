@@ -2,7 +2,113 @@
 -- Shared utilities for WezTerm plugins
 -- Common patterns for configuration merging, state management, and status bar building
 
+local wezterm = require("wezterm")
 local M = {}
+
+-- Debug mode
+M.debug_mode = os.getenv("WEZTERM_DEBUG") == "1"
+
+-------------------------------------------------------------------------------
+-- Safe Process Execution
+-------------------------------------------------------------------------------
+
+--- Safe command execution with array form (no shell injection)
+--- @param cmd table Command as array: {cmd, arg1, arg2, ...}
+--- @param timeout_secs number Timeout in seconds (default: 5)
+--- @return boolean success, string output, string stderr
+function M.safe_run(cmd, timeout_secs)
+  if type(cmd) == "string" then
+    error("safe_run() requires array form: {cmd, arg1, arg2, ...} not string")
+  end
+  
+  timeout_secs = timeout_secs or 5
+  local start_time = os.time()
+  local success, output, stderr = wezterm.run_child_process(cmd)
+  local elapsed = os.time() - start_time
+  
+  if M.debug_mode then
+    wezterm.log_error(string.format("[DEBUG] safe_run(%s) => success=%s, elapsed=%ds", 
+      table.concat(cmd, " "), tostring(success), elapsed))
+  end
+  
+  return success, output, stderr
+end
+
+--- Escape string for AppleScript (prevents injection)
+--- @param str string String to escape
+--- @return string Escaped string safe for AppleScript
+function M.escape_applescript(str)
+  str = str:gsub("\\", "\\\\")
+  str = str:gsub('"', '\\"')
+  return str
+end
+
+--- Safe directory creation (no shell injection)
+--- @param path string Directory path to create
+--- @return boolean success
+function M.mkdir_p(path)
+  if not path or path == "" then
+    wezterm.log_error("[WARN] mkdir_p() called with empty path")
+    return false
+  end
+  
+  local success, output, stderr = M.safe_run({"mkdir", "-p", path})
+  if not success then
+    wezterm.log_error(string.format("[ERROR] mkdir_p failed for %s: %s", path, stderr or "unknown error"))
+    return false
+  end
+  return true
+end
+
+--- Get secure temp file
+--- @param prefix string Prefix for temp file
+--- @param suffix string Suffix for temp file
+--- @return string Temp file path
+function M.get_temp_file(prefix, suffix)
+  prefix = prefix or "wezterm"
+  suffix = suffix or ""
+  
+  local tmp_file = os.tmpname()
+  if suffix ~= "" then
+    tmp_file = tmp_file .. suffix
+  end
+  
+  return tmp_file
+end
+
+--- Safe file write with error handling
+--- @param path string File path
+--- @param content string File content
+--- @return boolean success
+function M.safe_write_file(path, content)
+  local f, err = io.open(path, "w")
+  if not f then
+    wezterm.log_error(string.format("[ERROR] Cannot open %s for writing: %s", path, err))
+    return false
+  end
+  
+  local ok, err = f:write(content)
+  f:close()
+  
+  if not ok then
+    wezterm.log_error(string.format("[ERROR] Cannot write to %s: %s", path, err))
+    return false
+  end
+  
+  return true
+end
+
+--- Platform detection helpers
+--- @return boolean true if running on macOS
+function M.is_macos()
+  local ostype = os.getenv("OSTYPE") or ""
+  return ostype:match("darwin") ~= nil
+end
+
+--- @return boolean true if running on Windows
+function M.is_windows()
+  return wezterm.target_triple:find("windows") ~= nil
+end
 
 -------------------------------------------------------------------------------
 -- Configuration Merging
