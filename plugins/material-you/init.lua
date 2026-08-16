@@ -11,10 +11,13 @@ local M = {}
 -- Configuration Defaults (Tokyo Night fallback)
 -- ============================================
 
+local home_dir = os.getenv("HOME") or os.getenv("USERPROFILE") or "."
+local user_name = os.getenv("USER") or os.getenv("USERNAME") or "unknown"
+
 local defaults = {
   -- Use XDG_RUNTIME_DIR if available (safer than /tmp), fallback to ~/.cache
-  json_path = (os.getenv("XDG_RUNTIME_DIR") or (os.getenv("HOME") .. "/.cache")) .. 
-             "/kde-material-you-colors-" .. (os.getenv("USER") or "unknown") .. ".json",
+  json_path = (os.getenv("XDG_RUNTIME_DIR") or (home_dir .. "/.cache"))
+    .. "/kde-material-you-colors-" .. user_name .. ".json",
   scheme = "dark",
 }
 
@@ -55,21 +58,19 @@ local function read_colors(path)
     if lib.debug_mode then
       wezterm.log_error("[DEBUG] Cannot open color file: " .. path)
     end
-    return nil
+    return nil, "unavailable"
   end
   local content = f:read("*a")
   f:close()
   if not content or content == "" then
-    if lib.debug_mode then
-      wezterm.log_error("[DEBUG] Color file is empty: " .. path)
-    end
-    return nil
+    wezterm.log_warn("material-you: color file is empty: " .. path)
+    return nil, "invalid"
   end
 
   local parse_ok, data = pcall(wezterm.json_parse, content)
   if not parse_ok or not data then
-    wezterm.log_error("[WARN] Failed to parse color JSON: " .. path)
-    return nil
+    wezterm.log_warn("material-you: failed to parse color JSON: " .. path)
+    return nil, "invalid"
   end
 
   return data
@@ -79,7 +80,27 @@ end
 -- Color Mapping (M3 → tab_bar)
 -- ============================================
 
+local required_tokens = {
+  "surface",
+  "onSurface",
+  "primary",
+  "onPrimary",
+  "primaryContainer",
+  "onPrimaryContainer",
+  "outlineVariant",
+  "surfaceDim",
+  "onSurfaceVariant",
+  "surfaceContainerHigh",
+  "outline",
+}
+
 local function map_colors(scheme)
+  for _, token in ipairs(required_tokens) do
+    if type(scheme[token]) ~= "string" or scheme[token] == "" then
+      return nil, token
+    end
+  end
+
   return {
     -- Pane
     pane_bg = scheme.surface,
@@ -117,11 +138,24 @@ function M.apply_to_config(config, user_opts)
   local colors = fallback_colors
 
   local data = read_colors(json_path)
-  if data and data.schemes and data.schemes[scheme_key] then
-    colors = map_colors(data.schemes[scheme_key])
-    wezterm.log_info("material-you: loaded colors from " .. json_path .. " primary=" .. colors.active_tab_bg)
-  else
-    wezterm.log_warn("material-you: FALLBACK — could not read " .. json_path)
+  local scheme = type(data) == "table"
+      and type(data.schemes) == "table"
+      and data.schemes[scheme_key]
+    or nil
+  if type(scheme) == "table" then
+    local mapped, missing_token = map_colors(scheme)
+    if mapped then
+      colors = mapped
+      if lib.debug_mode then
+        wezterm.log_info("material-you: loaded colors from " .. json_path .. " primary=" .. colors.active_tab_bg)
+      end
+    else
+      wezterm.log_warn("material-you: scheme is missing token " .. missing_token .. ": " .. json_path)
+    end
+  elseif data then
+    wezterm.log_warn("material-you: scheme '" .. scheme_key .. "' not found: " .. json_path)
+  elseif lib.debug_mode then
+    wezterm.log_info("material-you: using fallback colors")
   end
 
   resolved_colors = colors
