@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  WEZTERM_VERSION: 20240203-110809-5046fc22
+  WEZTERM_APPIMAGE_SHA256: 34010a07076d2272c4d4f94b5e0dae608a679599e8d729446323f88f956c60f0
+  REQUIRE_WEZTERM: "1"
+
+jobs:
+  lua:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install Lua
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq lua5.4
+      - name: Install pinned WezTerm
+        shell: bash
+        run: |
+          set -euo pipefail
+          appimage="$RUNNER_TEMP/wezterm.AppImage"
+          install_dir="$RUNNER_TEMP/wezterm-$WEZTERM_VERSION"
+          curl -fsSL \
+            "https://github.com/wezterm/wezterm/releases/download/$WEZTERM_VERSION/WezTerm-$WEZTERM_VERSION-Ubuntu20.04.AppImage" \
+            -o "$appimage"
+          echo "$WEZTERM_APPIMAGE_SHA256  $appimage" | sha256sum -c -
+          chmod +x "$appimage"
+          mkdir -p "$install_dir"
+          (
+            cd "$install_dir"
+            "$appimage" --appimage-extract >/dev/null
+          )
+          wezterm_bin="$install_dir/squashfs-root/usr/bin"
+          echo "$wezterm_bin" >> "$GITHUB_PATH"
+          "$wezterm_bin/wezterm" --version
+      - name: Validate configuration
+        env:
+          WEZTERM_EXPECTED_VERSION: ${{ env.WEZTERM_VERSION }}
+        run: ./scripts/check.sh

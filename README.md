@@ -1,51 +1,22 @@
 # WezTerm Config
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![GitHub Sponsors](https://img.shields.io/github/sponsors/KevinTCoughlin)](https://github.com/sponsors/KevinTCoughlin)
+[![CI](https://github.com/KevinTCoughlin/wezterm-config/actions/workflows/ci.yml/badge.svg)](https://github.com/KevinTCoughlin/wezterm-config/actions/workflows/ci.yml)
 
-Minimal WezTerm configuration with Apple Media status bar.
+Personal, cross-platform WezTerm configuration with a native multiplexer workflow and local status plugins.
 
 ## Features
 
-- **Apple Media Status Bar** - Shows currently playing track with scrolling marquee
-- **Smart Splits** - Seamless navigation between WezTerm and Neovim panes
-- **Tokyo Night** theme with JetBrains Mono font
-- **tmux-like keybindings** with `Ctrl+a` leader key
+- Tokyo Night fallback theme with optional KDE Material You colors
+- Battery and Ollama status indicators
+- JetBrains Mono and Nerd Font fallback
+- tmux-like pane and tab keybindings with a `Ctrl+a` leader
+- Windows- and Unix-style path handling in tab titles
 
-## Apple Media Status Bar
-
-Displays currently playing content in the right status bar:
-
-```
-Song — Artist | Thu 1/23 3:45p
-```
-
-- Scrolling marquee for long titles (~1 char/sec)
-- Polls media every 2 seconds (minimal resource usage)
-- Responsive datetime based on window width
-
-### Media Keybindings
-
-| Binding | Action |
-|---------|--------|
-| `Ctrl+Shift+m` | play/pause |
-| `Ctrl+Shift+.` | next track |
-| `Ctrl+Shift+,` | previous track |
-| `Ctrl+Shift+=` | volume up |
-| `Ctrl+Shift+-` | volume down |
-
-### Configuration
-
-Edit the `media_config` table in `wezterm.lua`:
-
-```lua
-local media_config = {
-  scroll_width = 40,       -- visible characters for track display
-  update_interval = 1000,  -- 1Hz (1 char/sec scroll)
-  poll_every_n = 2,        -- poll media every N updates (~2 sec)
-  color = "#565f89",       -- status bar text color
-}
-```
+Material You colors are loaded from
+`$XDG_RUNTIME_DIR/kde-material-you-colors-$USER.json`, or from
+`$HOME/.cache` when `XDG_RUNTIME_DIR` is unavailable. Missing color data falls
+back to Tokyo Night.
 
 ## General Keybindings
 
@@ -65,27 +36,40 @@ Leader key: `Ctrl+a`
 | `C-a v` | copy mode |
 | `C-a r` | reload config |
 
-### Smart Splits (Neovim Integration)
-
-| Binding | Action |
-|---------|--------|
-| `Ctrl+h/j/k/l` | navigate panes (works across Neovim) |
-| `Alt+h/j/k/l` | resize panes |
-
 ## Requirements
 
 - [WezTerm](https://wezfurlong.org/wezterm/)
-- macOS (for Apple Music integration)
+- JetBrains Mono and Symbols Nerd Font Mono (recommended)
+- `curl` for Ollama status checks
+- Ollama is optional; the status indicator shows `off` when unavailable
+- KDE Material You color generation is optional and Linux-specific
 
 ## Installation
 
 ```bash
-git clone https://github.com/KevinTCoughlin/wezterm-config.git ~/.config/wezterm
+git clone --recurse-submodules \
+  https://github.com/KevinTCoughlin/wezterm-config.git ~/.config/wezterm
 ```
 
-## Support
+For an existing checkout:
 
-If you find this useful, consider [sponsoring](https://github.com/sponsors/KevinTCoughlin).
+```bash
+git submodule update --init --recursive
+```
+
+The Ollama plugin is pinned as a Git submodule so configuration updates remain reproducible.
+
+## Validation
+
+```bash
+./scripts/check.sh
+```
+
+The check validates all Lua syntax, verifies the required submodule is initialized,
+and loads the configuration through WezTerm when the executable is available.
+CI installs and verifies the pinned stable WezTerm release
+`20240203-110809-5046fc22`; a missing WezTerm executable is an error in CI.
+Set `REQUIRE_WEZTERM=1` to require the same API validation locally.
 
 ## License
 

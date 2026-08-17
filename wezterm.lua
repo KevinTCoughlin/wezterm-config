@@ -1,6 +1,12 @@
 -- WezTerm config — native multiplexer, no tmux needed
 -- Material You, Ollama, and Battery plugins for status bar
 
+local config_source = debug.getinfo(1, "S").source
+local config_dir = config_source:match("^@(.+[/\\])")
+if config_dir then
+  package.path = config_dir .. "?.lua;" .. config_dir .. "?/init.lua;" .. package.path
+end
+
 local wezterm = require("wezterm")
 local material_you = require("plugins.material-you.init")
 local ollama = require("plugins.wezterm-ollama/plugin/init")
@@ -32,10 +38,18 @@ config.hide_tab_bar_if_only_one_tab = false
 config.tab_max_width = 24
 
 -- Clean tab titles: "1:dirname" or "1:process"
+local function basename(path)
+  if type(path) ~= "string" or path == "" then
+    return nil
+  end
+  return path:match("([^/\\]+)[/\\]?$")
+end
+
 wezterm.on("format-tab-title", function(tab)
   local pane = tab.active_pane
-  local title = pane.current_working_dir and pane.current_working_dir.file_path:match("([^/]+)/?$")
-    or pane.foreground_process_name:match("([^/]+)$")
+  local cwd = pane.current_working_dir
+  local title = basename(cwd and cwd.file_path)
+    or basename(pane.foreground_process_name)
     or "term"
   return string.format(" %d:%s ", tab.tab_index + 1, title:sub(1, 18))
 end)
