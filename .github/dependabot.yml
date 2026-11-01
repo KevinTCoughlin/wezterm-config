@@ -1,0 +1,25 @@
+version: 2
+# This config is Lua with no package manifest; Dependabot covers the GitHub
+# Actions used in CI and the vendored plugin submodule(s) under plugins/.
+updates:
+  # Plugins pulled in as git submodules (e.g. plugins/wezterm-ollama) are
+  # loaded by the config at runtime, so bumps are `deps:`.
+  - package-ecosystem: gitsubmodule
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: deps
+    groups:
+      submodules:
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
+    groups:
+      github-actions:
+        patterns: ["*"]
