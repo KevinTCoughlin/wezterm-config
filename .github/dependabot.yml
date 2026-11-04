@@ -13,6 +13,8 @@ updates:
     groups:
       submodules:
         patterns: ["*"]
+    cooldown:
+      default-days: 7
 
   - package-ecosystem: github-actions
     directory: /
@@ -23,3 +25,5 @@ updates:
     groups:
       github-actions:
         patterns: ["*"]
+    cooldown:
+      default-days: 7
